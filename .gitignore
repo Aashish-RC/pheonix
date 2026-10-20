@@ -1,0 +1,44 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environments & Virtual Envs
+.env
+.env.local
+.venv
+venv/
+ENV/
+env/
+
+# Package & Build artifacts
+dist/
+build/
+*.egg-info/
+node_modules/
+.pnpm-store/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local databases & logs
+*.db
+*.sqlite
+*.sqlite3
+*.wal
+*.log
+logs/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Temporary artifacts
+temp/
+tmp/
+scratch/

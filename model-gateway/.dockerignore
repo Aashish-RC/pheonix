@@ -1,0 +1,7 @@
+node_modules
+dist
+quarantine
+.git
+.env
+.env.*
+*.log

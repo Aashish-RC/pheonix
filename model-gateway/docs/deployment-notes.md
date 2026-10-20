@@ -1,0 +1,3 @@
+# Deployment Notes: Dual-Tier Architecture
+
+The dual-tier routing architecture decouples low-latency local edge instances from centralized regional clusters. In this topology, client applications send requests directly to proximal edge model gateway nodes that evaluate local routing rules, enforce sliding-window rate limits, resolve prompt-cache affinities, and route to local models or primary cloud providers. If all local endpoints are in cooldown or capacity is saturated, the edge gateway transparently falls back to regional gateway clusters. Because this architectural pattern operates purely at the network deployment and configuration tier (as described in upstream gateway README references), no internal gateway routing code is required.

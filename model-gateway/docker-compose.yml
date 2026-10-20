@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ra1-model-gateway
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - NODE_ENV=production
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - FEATURE_CONSOLE_UI=false
+      - FEATURE_MCP=false
+      - FEATURE_TOOL_SEARCH=false
+      - FEATURE_A2A=false
+      - FEATURE_SECRETS_SYNC=false
+      - FEATURE_GEOIP=false
+      - FEATURE_VOICE_LEASES=false
+      - FEATURE_PREPAID_CREDITS=false
+    depends_on:
+      ollama:
+        condition: service_started
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ra1-ollama-escape
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+volumes:
+  ollama_data:
