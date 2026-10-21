@@ -200,6 +200,38 @@ class PostgreSQLFactStore(BaseFactStore):
         finally:
             conn.close()
 
+    def delete_fact(self, fact_id: UUID) -> bool:
+        conn = self._get_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM facts WHERE id = %s", (fact_id,))
+                conn.commit()
+                return cur.rowcount > 0
+        finally:
+            conn.close()
+
+    def update_fact(self, fact_id: UUID, new_value: str) -> Optional[FactItem]:
+        conn = self._get_connection()
+        now = utc_now()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE facts
+                    SET value = %s, updated_at = %s, version = version + 1
+                    WHERE id = %s AND is_active = TRUE
+                    """,
+                    (new_value, now, fact_id),
+                )
+                conn.commit()
+                if cur.rowcount == 0:
+                    return None
+                cur.execute("SELECT * FROM facts WHERE id = %s", (fact_id,))
+                r = cur.fetchone()
+                return self._dict_to_fact(r) if r else None
+        finally:
+            conn.close()
+
     def touch_fact(self, fact_id: UUID) -> None:
         conn = self._get_connection()
         now = utc_now()

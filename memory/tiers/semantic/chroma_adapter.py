@@ -50,6 +50,7 @@ class ChromaAdapter(BaseVectorStore):
             metadatas = [
                 {
                     "user_id": r.user_id,
+                    "project_id": r.project_id or "default",
                     "session_id": r.session_id or "",
                     "is_active": "true" if r.is_active else "false",
                     "confidence_score": float(r.confidence_score),
@@ -79,11 +80,16 @@ class ChromaAdapter(BaseVectorStore):
         query_embedding: List[float],
         top_k: int = 5,
         active_only: bool = True,
+        project_id: Optional[str] = None,
     ) -> List[MemoryRecord]:
         if self._has_chroma and self._collection is not None:
-            where_clause = {"user_id": user_id}
+            where_conditions = [{"user_id": user_id}]
             if active_only:
-                where_clause["is_active"] = "true"
+                where_conditions.append({"is_active": "true"})
+            if project_id:
+                where_conditions.append({"project_id": project_id})
+
+            where_clause = {"$and": where_conditions} if len(where_conditions) > 1 else where_conditions[0]
 
             results = self._collection.query(
                 query_embeddings=[query_embedding],
@@ -99,6 +105,7 @@ class ChromaAdapter(BaseVectorStore):
                     rec = MemoryRecord(
                         id=UUID(r_id),
                         user_id=meta.get("user_id", user_id),
+                        project_id=meta.get("project_id", "default"),
                         session_id=meta.get("session_id") or None,
                         text=doc,
                         embedding=emb,
@@ -115,7 +122,10 @@ class ChromaAdapter(BaseVectorStore):
         # Fallback search using cosine similarity
         candidates = [
             r for r in self._fallback_records.values()
-            if r.user_id == user_id and (not active_only or r.is_active) and r.embedding
+            if r.user_id == user_id
+            and (project_id is None or r.project_id == project_id)
+            and (not active_only or r.is_active)
+            and r.embedding
         ]
         if not candidates:
             return []

@@ -70,6 +70,7 @@ class QdrantAdapter(BaseVectorStore):
 
             payload = {
                 "user_id": r.user_id,
+                "project_id": r.project_id or "default",
                 "session_id": r.session_id,
                 "text": r.text,
                 "metadata": r.metadata,
@@ -92,10 +93,13 @@ class QdrantAdapter(BaseVectorStore):
         query_embedding: List[float],
         top_k: int = 5,
         active_only: bool = True,
+        project_id: Optional[str] = None,
     ) -> List[MemoryRecord]:
         must_conditions = [FieldCondition(key="user_id", match=MatchValue(value=user_id))]
         if active_only:
             must_conditions.append(FieldCondition(key="is_active", match=MatchValue(value=True)))
+        if project_id:
+            must_conditions.append(FieldCondition(key="project_id", match=MatchValue(value=project_id)))
 
         query_filter = Filter(must=must_conditions)
 
@@ -126,6 +130,7 @@ class QdrantAdapter(BaseVectorStore):
             rec = MemoryRecord(
                 id=UUID(str(p.id)),
                 user_id=payload.get("user_id", user_id),
+                project_id=payload.get("project_id", "default"),
                 session_id=payload.get("session_id"),
                 text=payload.get("text", ""),
                 embedding=p.vector if isinstance(p.vector, list) else None,

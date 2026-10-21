@@ -42,6 +42,7 @@ class SQLiteFactStore(BaseFactStore):
                 CREATE TABLE IF NOT EXISTS facts (
                     id TEXT PRIMARY KEY,
                     user_id TEXT NOT NULL,
+                    project_id TEXT NOT NULL DEFAULT 'default',
                     key TEXT NOT NULL,
                     value TEXT NOT NULL,
                     category TEXT NOT NULL,
@@ -56,6 +57,12 @@ class SQLiteFactStore(BaseFactStore):
                     access_count INTEGER NOT NULL DEFAULT 0
                 );
             """)
+            # Schema migration check
+            cur = conn.execute("PRAGMA table_info(facts)")
+            cols = [r["name"] for r in cur.fetchall()]
+            if "project_id" not in cols:
+                conn.execute("ALTER TABLE facts ADD COLUMN project_id TEXT DEFAULT 'default'")
+
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_facts_user_active
                 ON facts(user_id, is_active);
@@ -64,14 +71,20 @@ class SQLiteFactStore(BaseFactStore):
                 CREATE INDEX IF NOT EXISTS idx_facts_user_key_active
                 ON facts(user_id, key, is_active);
             """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_facts_project
+                ON facts(project_id);
+            """)
             conn.commit()
             if self._memory_conn is None:
                 conn.close()
 
     def _row_to_fact(self, row: sqlite3.Row) -> FactItem:
+        cols = row.keys()
         return FactItem(
             id=UUID(row["id"]),
             user_id=row["user_id"],
+            project_id=row["project_id"] if "project_id" in cols and row["project_id"] else "default",
             key=row["key"],
             value=row["value"],
             category=FactCategory(row["category"]),
@@ -94,10 +107,10 @@ class SQLiteFactStore(BaseFactStore):
         with self._lock:
             conn = self._get_connection()
             try:
-                # Check for existing latest fact for this user and key
+                # Check for existing latest fact for this user, project, and key
                 cur = conn.execute(
-                    "SELECT id, version FROM facts WHERE user_id = ? AND key = ? AND is_active = 1",
-                    (fact.user_id, fact.key),
+                    "SELECT id, version FROM facts WHERE user_id = ? AND project_id = ? AND key = ? AND is_active = 1",
+                    (fact.user_id, fact.project_id or "default", fact.key),
                 )
                 existing = cur.fetchone()
 
@@ -119,14 +132,15 @@ class SQLiteFactStore(BaseFactStore):
                 conn.execute(
                     """
                     INSERT INTO facts (
-                        id, user_id, key, value, category, source_event_id,
+                        id, user_id, project_id, key, value, category, source_event_id,
                         version, is_active, confidence_score, superseded_by,
                         created_at, updated_at, last_accessed_at, access_count
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         str(fact.id),
                         fact.user_id,
+                        fact.project_id or "default",
                         fact.key,
                         fact.value,
                         fact.category.value,
@@ -147,11 +161,16 @@ class SQLiteFactStore(BaseFactStore):
                     conn.close()
         return fact
 
-    def get_facts(self, user_id: str, active_only: bool = True) -> List[FactItem]:
+    def get_facts(
+        self, user_id: str, active_only: bool = True, project_id: Optional[str] = None
+    ) -> List[FactItem]:
         query = "SELECT * FROM facts WHERE user_id = ?"
-        params = [user_id]
+        params: list = [user_id]
         if active_only:
             query += " AND is_active = 1"
+        if project_id:
+            query += " AND project_id = ?"
+            params.append(project_id)
         query += " ORDER BY updated_at DESC"
 
         with self._lock:
@@ -163,17 +182,58 @@ class SQLiteFactStore(BaseFactStore):
                 if self._memory_conn is None:
                     conn.close()
 
-    def get_fact_by_key(self, user_id: str, key: str, active_only: bool = True) -> Optional[FactItem]:
+    def get_fact_by_key(
+        self, user_id: str, key: str, active_only: bool = True, project_id: Optional[str] = None
+    ) -> Optional[FactItem]:
         query = "SELECT * FROM facts WHERE user_id = ? AND key = ?"
-        params = [user_id, key]
+        params: list = [user_id, key]
         if active_only:
             query += " AND is_active = 1"
+        if project_id:
+            query += " AND project_id = ?"
+            params.append(project_id)
         query += " ORDER BY version DESC LIMIT 1"
 
         with self._lock:
             conn = self._get_connection()
             try:
                 cur = conn.execute(query, params)
+                row = cur.fetchone()
+                return self._row_to_fact(row) if row else None
+            finally:
+                if self._memory_conn is None:
+                    conn.close()
+
+    def delete_fact(self, fact_id: UUID) -> bool:
+        """Permanently delete a fact from storage."""
+        with self._lock:
+            conn = self._get_connection()
+            try:
+                cur = conn.execute("DELETE FROM facts WHERE id = ?", (str(fact_id),))
+                conn.commit()
+                return cur.rowcount > 0
+            finally:
+                if self._memory_conn is None:
+                    conn.close()
+
+    def update_fact(self, fact_id: UUID, new_value: str) -> Optional[FactItem]:
+        """Directly update the value of an existing active fact."""
+        now = utc_now().isoformat()
+        with self._lock:
+            conn = self._get_connection()
+            try:
+                cur = conn.execute(
+                    """
+                    UPDATE facts
+                    SET value = ?, updated_at = ?, version = version + 1
+                    WHERE id = ? AND is_active = 1
+                    """,
+                    (new_value, now, str(fact_id)),
+                )
+                conn.commit()
+                if cur.rowcount == 0:
+                    return None
+                cur = conn.execute("SELECT * FROM facts WHERE id = ?", (str(fact_id),))
                 row = cur.fetchone()
                 return self._row_to_fact(row) if row else None
             finally:

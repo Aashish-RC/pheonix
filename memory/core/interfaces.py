@@ -45,18 +45,30 @@ class BaseFactStore(ABC):
         pass
 
     @abstractmethod
-    def get_facts(self, user_id: str, active_only: bool = True) -> List[FactItem]:
-        """List facts belonging to a user."""
+    def get_facts(self, user_id: str, active_only: bool = True, project_id: Optional[str] = None) -> List[FactItem]:
+        """List facts belonging to a user, optionally filtered by project_id."""
         pass
 
     @abstractmethod
-    def get_fact_by_key(self, user_id: str, key: str, active_only: bool = True) -> Optional[FactItem]:
-        """Fetch a specific fact by key for a user."""
+    def get_fact_by_key(
+        self, user_id: str, key: str, active_only: bool = True, project_id: Optional[str] = None
+    ) -> Optional[FactItem]:
+        """Fetch a specific fact by key for a user, optionally filtered by project_id."""
         pass
 
     @abstractmethod
     def invalidate_fact(self, fact_id: UUID, superseded_by: Optional[UUID] = None) -> bool:
         """Mark a fact as inactive/superseded."""
+        pass
+
+    @abstractmethod
+    def delete_fact(self, fact_id: UUID) -> bool:
+        """Permanently delete a fact by ID."""
+        pass
+
+    @abstractmethod
+    def update_fact(self, fact_id: UUID, new_value: str) -> Optional[FactItem]:
+        """Directly update the value of an existing active fact."""
         pass
 
     @abstractmethod
@@ -85,8 +97,9 @@ class BaseVectorStore(ABC):
         query_embedding: List[float],
         top_k: int = 5,
         active_only: bool = True,
+        project_id: Optional[str] = None,
     ) -> List[MemoryRecord]:
-        """Retrieve top-K semantically similar memories filtered by user and status."""
+        """Retrieve top-K semantically similar memories filtered by user, status, and project."""
         pass
 
     @abstractmethod

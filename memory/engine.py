@@ -10,6 +10,7 @@ from core.models import (
     MemoryRecord,
     Turn,
     TurnRole,
+    MemorySourcesView,
     utc_now,
 )
 from core.interfaces import (
@@ -29,6 +30,7 @@ from stitches.extractor import FactExtractor
 from stitches.conflict_resolver import ConflictResolver
 from stitches.synthesizer import ContextSynthesizer
 from stitches.consolidation import ConsolidationEngine, ConsolidationResult
+from stitches.sources_view import MemorySourcesViewBuilder
 
 
 class MemoryEngine:
@@ -99,6 +101,7 @@ class MemoryEngine:
         text: str,
         session_id: Optional[str] = None,
         role: TurnRole = TurnRole.USER,
+        project_id: str = "default",
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Record an incoming agent/user interaction into the memory hierarchy.
@@ -119,6 +122,7 @@ class MemoryEngine:
                 id=event_id,
                 session_id=session_id,
                 user_id=user_id,
+                project_id=project_id,
                 role=role,
                 content=text,
                 tokens=self.synthesizer.count_tokens(text),
@@ -134,6 +138,7 @@ class MemoryEngine:
         if plan.facts_to_add or plan.keys_to_invalidate:
             for fact in plan.facts_to_add:
                 fact.source_event_id = event_id
+                fact.project_id = project_id
             saved_facts = self.resolver.resolve_and_apply(
                 candidate_facts=plan.facts_to_add,
                 keys_to_invalidate=plan.keys_to_invalidate,
@@ -146,6 +151,7 @@ class MemoryEngine:
             archival_record = MemoryRecord(
                 id=event_id,
                 user_id=user_id,
+                project_id=project_id,
                 session_id=session_id,
                 text=plan.archival_text,
                 embedding=emb,
@@ -161,6 +167,7 @@ class MemoryEngine:
         return {
             "event_id": str(event_id),
             "user_id": user_id,
+            "project_id": project_id,
             "session_id": session_id,
             "facts_saved": [f.model_dump() for f in saved_facts],
             "archival_record_id": archival_record_id,
@@ -172,14 +179,15 @@ class MemoryEngine:
         user_id: str,
         query: str,
         session_id: Optional[str] = None,
+        project_id: Optional[str] = None,
         top_k: Optional[int] = None,
     ) -> ContextPackage:
         """Recall concentrated context (< 500 tokens) for system prompt injection.
         
         Synthesizes:
         - Tier 1: Most recent conversation window for active session.
-        - Tier 2: Ground-truth active user facts and preferences.
-        - Tier 3: Top-K semantic archival matches.
+        - Tier 2: Ground-truth active user facts and preferences (project-isolated).
+        - Tier 3: Top-K semantic archival matches (project-isolated).
         """
         k = top_k or self.config.top_k_semantic_matches
 
@@ -192,7 +200,7 @@ class MemoryEngine:
             )
 
         # Tier 2: Active structured facts
-        core_facts = self.facts.get_facts(user_id=user_id, active_only=True)
+        core_facts = self.facts.get_facts(user_id=user_id, active_only=True, project_id=project_id)
         # Touch facts to reinforce access frequency
         for f in core_facts:
             self.facts.touch_fact(f.id)
@@ -204,6 +212,7 @@ class MemoryEngine:
             query_embedding=query_emb,
             top_k=k,
             active_only=True,
+            project_id=project_id,
         )
 
         # Stitch 4: Dynamic Synthesis with token budget limit
@@ -219,6 +228,53 @@ class MemoryEngine:
         """Execute REM Sleep consolidation cycle on a session."""
         return self.consolidation.consolidate_session(user_id=user_id, session_id=session_id)
 
-    def get_active_facts(self, user_id: str) -> List[FactItem]:
+    def get_active_facts(self, user_id: str, project_id: Optional[str] = None) -> List[FactItem]:
         """Fetch all currently active ground-truth facts for a user."""
-        return self.facts.get_facts(user_id=user_id, active_only=True)
+        return self.facts.get_facts(user_id=user_id, active_only=True, project_id=project_id)
+
+    def update_fact(self, fact_id: Any, new_value: str) -> Optional[FactItem]:
+        """Update the value of an active fact with version tracking."""
+        from uuid import UUID
+        fid = fact_id if isinstance(fact_id, UUID) else UUID(str(fact_id))
+        return self.facts.update_fact(fid, new_value)
+
+    def delete_fact(self, fact_id: Any) -> bool:
+        """Permanently delete a structured fact."""
+        from uuid import UUID
+        fid = fact_id if isinstance(fact_id, UUID) else UUID(str(fact_id))
+        return self.facts.delete_fact(fid)
+
+    def delete_archival_memory(self, record_id: Any) -> bool:
+        """Permanently delete an archival memory vector."""
+        from uuid import UUID
+        rid = record_id if isinstance(record_id, UUID) else UUID(str(record_id))
+        return self.vectors.delete(rid)
+
+    def delete_all_user_memory(self, user_id: str) -> Dict[str, int]:
+        """Erase all memory traces (facts and vectors) for a given user."""
+        vector_count = self.vectors.delete_by_user(user_id)
+        active_facts = self.facts.get_facts(user_id=user_id, active_only=False)
+        deleted_facts = 0
+        for f in active_facts:
+            if self.facts.delete_fact(f.id):
+                deleted_facts += 1
+        return {"deleted_facts": deleted_facts, "deleted_vectors": vector_count}
+
+    def get_memory_sources(self, user_id: str, project_id: str = "default") -> MemorySourcesView:
+        """Generate full provenance view of all facts and archival memories."""
+        facts = self.facts.get_facts(user_id=user_id, active_only=False, project_id=project_id)
+        # Search all records for user and project
+        query_emb = self.embedder.embed_text("project memory context")
+        records = self.vectors.query_similar(
+            user_id=user_id,
+            query_embedding=query_emb,
+            top_k=50,
+            active_only=False,
+            project_id=project_id,
+        )
+        return MemorySourcesViewBuilder.build(
+            user_id=user_id,
+            project_id=project_id,
+            facts=facts,
+            archival_records=records,
+        )

@@ -131,7 +131,7 @@ class FactExtractor(BaseLLMExtractor):
             entities.extend([new_lang, old_lang])
         else:
             lang_match = re.search(
-                r"\b(i code in|i write|i prefer|favorite language is)\s+([a-zA-Z\+#]+)",
+                r"\b(i code in|i write|i prefer|(?:favorite|preferred) language is)\s+([a-zA-Z\+#]+)",
                 text,
                 re.IGNORECASE,
             )
@@ -148,6 +148,45 @@ class FactExtractor(BaseLLMExtractor):
                     )
                 )
                 entities.append(lang)
+
+        # 2b. Cloud / Database Tech Stack
+        cloud_match = re.search(
+            r"\b(?:favorite|preferred) cloud(?: provider)? is\s+([a-zA-Z0-9\-_]+)",
+            text,
+            re.IGNORECASE,
+        )
+        if cloud_match:
+            cloud = cloud_match.group(1).strip().upper()
+            facts_to_add.append(
+                FactItem(
+                    id=uuid4(),
+                    user_id=user_id,
+                    key="preferred_cloud",
+                    value=cloud,
+                    category=FactCategory.PREFERENCE,
+                    source_event_id=event_id,
+                )
+            )
+            entities.append(cloud)
+
+        db_match = re.search(
+            r"\b(?:favorite|preferred) database(?: engine)? (?:for this project )?is\s+([a-zA-Z0-9\-_]+)",
+            text,
+            re.IGNORECASE,
+        )
+        if db_match:
+            db_name = db_match.group(1).strip()
+            facts_to_add.append(
+                FactItem(
+                    id=uuid4(),
+                    user_id=user_id,
+                    key="preferred_database",
+                    value=db_name,
+                    category=FactCategory.PREFERENCE,
+                    source_event_id=event_id,
+                )
+            )
+            entities.append(db_name)
 
         # 3. OS / Environment
         os_switch = re.search(
