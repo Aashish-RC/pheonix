@@ -1,0 +1,24 @@
+{
+  "name": "notifications",
+  "version": "0.1.0",
+  "description": "Pheonix Unified Notifications Engine with Multi-Channel Dispatcher and Quiet Hours Rules",
+  "dependencies": [
+    {
+      "name": "orchestrator",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "Persistent thread-safe notification InboxStore with unread tracking and channel filters",
+        "QuietHoursEvaluator supporting overnight suppression and urgent alert overrides",
+        "ChannelDispatcher delivering alerts to inbox, desktop, and webhook endpoints",
+        "OrchestratorListener dispatching task completion alerts directly to user channels"
+      ],
+      "breaking": false
+    }
+  ]
+}

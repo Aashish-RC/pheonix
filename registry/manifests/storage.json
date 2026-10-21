@@ -1,0 +1,24 @@
+{
+  "name": "storage",
+  "version": "0.1.0",
+  "description": "Pheonix Storage and Files: Object Drivers, File Library, Deduplication, and Quotas",
+  "dependencies": [
+    {
+      "name": "auth",
+      "version_requirement": ">=0.1.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "Local filesystem atomic blob driver with directory traversal prevention",
+        "Content-addressable SHA-256 deduplication across projects",
+        "Per-project storage capacity and file count quota manager",
+        "StorageClient SDK supporting upload, download, reuse, and deletion"
+      ],
+      "breaking": false
+    }
+  ]
+}

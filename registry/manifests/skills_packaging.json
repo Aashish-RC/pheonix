@@ -1,0 +1,31 @@
+{
+  "name": "skills_packaging",
+  "version": "0.1.0",
+  "description": "Pheonix Portable Skill and Plugin Packaging Engine with Sandboxed Installation and Hot-Reload Runtime",
+  "dependencies": [
+    {
+      "name": "registry",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    },
+    {
+      "name": "agent_builder",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    },
+    {
+      "name": "tools_mcp",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "Cryptographic Packager calculating deterministic SHA-256 package checksums",
+        "Installer verifying signature integrity, detecting corrupt bundles, and unpacking extensions",
+        "PluginRunner hot-reloading and executing installed skills and multi-skill plugins in sandboxed runtime"
+      ],
+      "breaking": false
+    }
+  ]
+}

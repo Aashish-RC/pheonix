@@ -1,0 +1,18 @@
+{
+  "name": "vault",
+  "version": "0.1.0",
+  "description": "Pheonix Zero-Plaintext Cryptographic Vault and Key Store",
+  "dependencies": [],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "Initial release: Argon2id KDF and AES-256-GCM envelope encryption",
+        "Ephemeral SecretLease with automatic in-memory zeroization",
+        "Instant key revocation and tamper detection"
+      ],
+      "breaking": false
+    }
+  ]
+}

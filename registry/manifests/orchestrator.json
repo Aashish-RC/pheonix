@@ -1,0 +1,29 @@
+{
+  "name": "orchestrator",
+  "version": "0.1.0",
+  "description": "Pheonix Multi-Step Task Planner, Parallel Fan-Out/Fan-In Runner, Cooperative Cancellation, and Budget Guard",
+  "dependencies": [
+    {
+      "name": "rules",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    },
+    {
+      "name": "permissions",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "MultiStepPlanner with cycle detection and Kahn's algorithm topological layer resolution",
+        "ParallelDAGRunner with ThreadPoolExecutor fan-out and join barrier synchronization",
+        "Cooperative CancellationToken allowing parallel tasks to run and be immediately stopped",
+        "BudgetGuard validating plan cost estimates and tracking step spending",
+        "SQLitePlanStore persistent state checkpointing and recovery"
+      ],
+      "breaking": false
+    }
+  ]
+}

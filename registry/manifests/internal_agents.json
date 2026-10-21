@@ -1,0 +1,33 @@
+{
+  "name": "internal_agents",
+  "version": "0.1.0",
+  "description": "Pheonix Autonomous Internal Agents Engine with Background Scheduling and Visible Audit Log Journal",
+  "dependencies": [
+    {
+      "name": "observability",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    },
+    {
+      "name": "guardrails",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    },
+    {
+      "name": "providers",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "Autonomous Provider Health Agent checking endpoint latency and failover readiness",
+        "Autonomous Guardrail Review Agent inspecting transcripts for prompt injections, credential leaks, and PII",
+        "Autonomous Resource Monitor Agent sampling CPU/RAM thresholds and device queue health",
+        "Append-only SQLite visible agent log store for transparent event journaling",
+        "BackgroundAgentScheduler supporting periodic threaded cycles and manual batch triggers"
+      ],
+      "breaking": false
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "name": "release_finishing",
+  "version": "0.1.0",
+  "description": "Pheonix Release Finishing, Staged Rollout Channels, Bundle Export Packager, and System Diagnostics",
+  "dependencies": [
+    {
+      "name": "registry",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "StagedRolloutController managing Alpha, Beta, and Stable distribution rings with canary percentage cohorts",
+        "ReleaseExportPackager producing signed distribution packages with SHA-256 bundle verification",
+        "UpdateChannelManager supporting dry-run upgrades, health gates, and automated rollback guards",
+        "SystemDiagnosticSuite probing composite health across all 34 architecture components"
+      ],
+      "breaking": false
+    }
+  ]
+}

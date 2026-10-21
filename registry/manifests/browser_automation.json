@@ -1,0 +1,32 @@
+{
+  "name": "browser_automation",
+  "version": "0.1.0",
+  "description": "Pheonix Browser Automation Engine with Sandboxed Infrastructure and Consequential Action Confirmation Gate",
+  "dependencies": [
+    {
+      "name": "permissions",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    },
+    {
+      "name": "sandboxes",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    },
+    {
+      "name": "tools_mcp",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "Headless sandboxed browser session runner with profile isolation",
+        "Action risk classifier identifying consequential actions (payments, deletions, logins, sensitive forms)",
+        "Confirmation rules gate enforcing human approval before executing consequential actions",
+        "BrowserAgent coordinating multi-step web tasks with pause-on-confirmation barriers"
+      ],
+      "breaking": false
+    }
+  ]
+}

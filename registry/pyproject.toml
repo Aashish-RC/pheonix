@@ -1,0 +1,14 @@
+[project]
+name = "pheonix-registry"
+version = "0.1.0"
+description = "Pheonix Component Registry, Versioning, and Compatibility Engine"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]

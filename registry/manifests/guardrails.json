@@ -1,0 +1,28 @@
+{
+  "name": "guardrails",
+  "version": "0.1.0",
+  "description": "Pheonix Guardrails and Safety v0: Jailbreak Prevention, PII Sanitization, and Crisis Response",
+  "dependencies": [
+    {
+      "name": "rules",
+      "version_requirement": ">=0.1.0"
+    },
+    {
+      "name": "model_gateway",
+      "version_requirement": ">=0.1.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "Curated safety rules and adversarial attack vector detector",
+        "DAN, prompt injection, and delimiter escape blocking",
+        "PII sanitization and credential redaction (SSN, Email, Keys)",
+        "Crisis intervention handler with emergency support notices"
+      ],
+      "breaking": false
+    }
+  ]
+}

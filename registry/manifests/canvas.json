@@ -1,0 +1,24 @@
+{
+  "name": "canvas",
+  "version": "0.1.0",
+  "description": "Pheonix Infinite 2D Spatial Canvas Graph, Live Versioned Artifacts with Time-Travel Snapshots, and Runnable Execution Cards",
+  "dependencies": [
+    {
+      "name": "storage",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "2D spatial canvas graph with infinite viewport panning, zoom, and directional connector edges",
+        "Live artifacts engine with incremental revisions, unified line diffs, and time-travel rollback",
+        "Runnable execution cards with sandboxed Python execution and shell command execution with timeout protection",
+        "Project workspace isolation and cascading deletion integrity across boards, nodes, edges, and revisions"
+      ],
+      "breaking": false
+    }
+  ]
+}

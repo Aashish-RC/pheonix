@@ -1,0 +1,33 @@
+{
+  "name": "search",
+  "version": "0.1.0",
+  "description": "Pheonix Global Hybrid Search Engine: BM25 Lexical, Vector Cosine, and Multi-Corpus RRF",
+  "dependencies": [
+    {
+      "name": "storage",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    },
+    {
+      "name": "memory",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    },
+    {
+      "name": "knowledge",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "Multi-Corpus Indexer for chats, files, notes, and memory",
+        "Embedded SQLite FTS5 lexical engine with prefix and exact matching",
+        "Dense vector similarity indexing with lightweight deterministic embedding",
+        "Reciprocal Rank Fusion (RRF) combining lexical and semantic results",
+        "Strict project_id isolation and facet filtering"
+      ],
+      "breaking": false
+    }
+  ]
+}

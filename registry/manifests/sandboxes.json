@@ -1,0 +1,29 @@
+{
+  "name": "sandboxes",
+  "version": "0.1.0",
+  "description": "Pheonix Isolated Code Sandbox, Resource Governor, Ephemeral Scratchpad Lifecycle, and Device Runner Engine",
+  "dependencies": [
+    {
+      "name": "permissions",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    },
+    {
+      "name": "orchestrator",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "SecurityGovernor static policy inspection, path traversal checks, and environment secret stripping",
+        "ResourceLimits enforcing execution timeouts, maximum output buffer size, and network egress controls",
+        "LocalProcessRunner resource-governed subprocess execution and timeout termination",
+        "DeviceRunner hardware-aware runner selecting local process isolation and virtual file mapping",
+        "SandboxManager managing ephemeral scratchpad lifecycles with deterministic post-run cleanup"
+      ],
+      "breaking": false
+    }
+  ]
+}

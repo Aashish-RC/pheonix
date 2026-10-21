@@ -1,0 +1,24 @@
+{
+  "name": "permissions",
+  "version": "0.1.0",
+  "description": "Pheonix Three-Tier Permission Modes (Always Ask, Ask on Changes, Auto-Review), Risk Scoring, and Human-in-the-Loop Approval Governance",
+  "dependencies": [
+    {
+      "name": "rules",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "Three distinct security tiers: Always Ask (all actions gated), Ask on Changes (reads permitted, mutations gated), Auto-Review (autonomous low/medium risk, high-risk gated)",
+        "Heuristic RiskScorer detecting destructive commands and sensitive paths",
+        "Thread-safe ApprovalQueue with programmatic approval, rejection, and deadline expiration",
+        "Append-only SQLiteAuditStore for tamper-resistant governance logging"
+      ],
+      "breaking": false
+    }
+  ]
+}

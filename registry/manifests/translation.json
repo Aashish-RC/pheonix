@@ -1,0 +1,29 @@
+{
+  "name": "translation",
+  "version": "0.1.0",
+  "description": "Pheonix Multilingual Translation Subsystem, Locale Detection, Cryptographic Cache, and Conversational Middleware",
+  "dependencies": [
+    {
+      "name": "model-gateway",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    },
+    {
+      "name": "rules",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "LocaleDetector identifying ISO 639-1 language codes and Unicode scripts (Latin, Hanzi, Hangul, Devanagari, Arabic, Cyrillic)",
+        "Deterministic MockOfflineTranslationEngine and Model Gateway translation bridge",
+        "TranslationCache storing translations under SHA-256 composite keys with LRU eviction and telemetry",
+        "LocalizationManager resolving system UI message bundles across international locales with fallback",
+        "AutoTranslateMiddleware providing bidirectional on-the-fly conversational message translation"
+      ],
+      "breaking": false
+    }
+  ]
+}

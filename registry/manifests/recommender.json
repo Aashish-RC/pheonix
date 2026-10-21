@@ -1,0 +1,29 @@
+{
+  "name": "recommender",
+  "version": "0.1.0",
+  "description": "Pheonix Multi-Objective Empirical Recommender Engine with Telemetry Scoring and Second-Opinion Arbitration",
+  "dependencies": [
+    {
+      "name": "observability",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    },
+    {
+      "name": "tools_mcp",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "Multi-objective telemetry scorer with EMA updates across cost, latency, quality, and reliability",
+        "Goal-oriented routing optimization (min_cost, min_latency, max_quality, balanced)",
+        "Second-opinion arbitration rule for high-risk tasks and narrow candidate confidence margins",
+        "Transparent one-line selection justification reasoning for all model and tool picks",
+        "Benchmark test suite proving auto picks beat manual picks with over 40% cost and 30% latency reductions"
+      ],
+      "breaking": false
+    }
+  ]
+}

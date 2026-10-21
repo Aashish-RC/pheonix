@@ -1,0 +1,28 @@
+{
+  "name": "tracker",
+  "version": "0.1.0",
+  "description": "Pheonix Subscription and Key Tracker: Provider Plans, Renewals, and Active Key Quotas",
+  "dependencies": [
+    {
+      "name": "providers",
+      "version_requirement": ">=0.1.0"
+    },
+    {
+      "name": "observability",
+      "version_requirement": ">=0.1.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "Provider subscription plan registry",
+        "Upcoming renewals engine with countdown calculation",
+        "Active key monitor tracking quota percentages and alert thresholds",
+        "TrackerClient SDK with ASCII dashboard rendering"
+      ],
+      "breaking": false
+    }
+  ]
+}

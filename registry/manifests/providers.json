@@ -1,0 +1,24 @@
+{
+  "name": "providers",
+  "version": "0.1.0",
+  "description": "Pheonix Provider Activation, Live Ping Probes, and Health Rechecks",
+  "dependencies": [
+    {
+      "component_name": "vault",
+      "version_constraint": ">=0.1.0, <1.0.0",
+      "optional": false
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "Initial release: Provider onboarding for OpenAI, Anthropic, Gemini, Mistral, Ollama",
+        "Automated live ping probes and latency diagnostics",
+        "Deterministic revocation synchronization: revoked keys immediately show as inactive"
+      ],
+      "breaking": false
+    }
+  ]
+}

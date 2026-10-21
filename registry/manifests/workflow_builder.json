@@ -1,0 +1,28 @@
+{
+  "name": "workflow_builder",
+  "version": "0.1.0",
+  "description": "Pheonix Describe-to-Workflow Engine with Topological Validation and Orchestrator Bridge",
+  "dependencies": [
+    {
+      "name": "orchestrator",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    },
+    {
+      "name": "agent_builder",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "Declarative WorkflowGraph model supporting triggers, agent steps, parallel fan-out/fan-in barriers, and termination",
+        "WorkflowEngine with cycle detection, topological validation, and dependency consistency checking",
+        "Describe-to-Workflow natural language compiler synthesizing structured workflows from plain-language prompts",
+        "OrchestratorBridge dispatching compiled graphs directly into Step 19 Orchestrator for durable parallel execution"
+      ],
+      "breaking": false
+    }
+  ]
+}

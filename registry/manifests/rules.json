@@ -1,0 +1,24 @@
+{
+  "name": "rules",
+  "version": "0.1.0",
+  "description": "Pheonix Universal Rules Layer and Real-Time Policy Propagation Engine",
+  "dependencies": [
+    {
+      "component_name": "registry",
+      "version_constraint": ">=0.1.0, <1.0.0",
+      "optional": false
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "Initial release: Universal rule schema and condition matching",
+        "Persistent atomic storage for policy definitions",
+        "Real-time event dispatcher pushing rule changes to every connected app"
+      ],
+      "breaking": false
+    }
+  ]
+}

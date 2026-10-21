@@ -1,0 +1,119 @@
+name: Pheonix Unified CI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  test-and-verify:
+    name: Test & Invariant Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10
+
+      - name: Install Model Gateway Dependencies
+        run: |
+          cd model-gateway
+          pnpm install --frozen-lockfile
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio fastapi httpx pydantic pyyaml cryptography psutil
+
+      - name: Run Secret / Plaintext Invariant Scan
+        run: |
+          echo "Scanning for plaintext keys or committed secret files..."
+          if find . -name "*.env" -not -path "*/.env.example" | grep -q .; then
+            echo "ERROR: Disallowed .env files detected!"
+            exit 1
+          fi
+
+      - name: Run Component Registry Tests (Pytest)
+        run: |
+          cd registry
+          python -m pytest tests/
+
+      - name: Run Cryptographic Vault Tests (Pytest)
+        run: |
+          cd vault
+          python -m pytest tests/
+
+      - name: Run Auth & Identity Tests (Pytest)
+        run: |
+          cd auth
+          python -m pytest tests/
+
+      - name: Run Rules Layer Tests (Pytest)
+        run: |
+          cd rules
+          python -m pytest tests/
+
+      - name: Run Provider Activation Tests (Pytest)
+        run: |
+          cd providers
+          python -m pytest tests/
+
+      - name: Run Model Gateway Tests (Vitest)
+        run: |
+          cd model-gateway
+          pnpm test
+
+      - name: Run Model Serving Tests (Pytest)
+        run: |
+          cd serving
+          python -m pytest tests/
+
+      - name: Run Observability Tests (Pytest)
+        run: |
+          cd observability
+          python -m pytest tests/
+
+      - name: Run Guardrails and Safety Tests (Pytest)
+        run: |
+          cd guardrails
+          python -m pytest tests/
+
+      - name: Run Subscription Tracker Tests (Pytest)
+        run: |
+          cd tracker
+          python -m pytest tests/
+
+      - name: Run Storage and Files Tests (Pytest)
+        run: |
+          cd storage
+          python -m pytest tests/
+
+      - name: Run Memory Engine Tests (Pytest)
+        run: |
+          cd memory
+          python -m pytest tests/
+
+      - name: Run Agent Layer Tests (Pytest)
+        run: |
+          cd agent
+          python -m pytest tests/
+
+      - name: Run Unified Test Runner
+        run: |
+          python scripts/test_all.py

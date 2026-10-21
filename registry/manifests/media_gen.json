@@ -1,0 +1,38 @@
+{
+  "name": "media_gen",
+  "version": "0.1.0",
+  "description": "Pheonix Multi-Modal Media Generation Pipeline, Job Queue, Safety Filters, and Gallery",
+  "dependencies": [
+    {
+      "name": "model-gateway",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    },
+    {
+      "name": "guardrails",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    },
+    {
+      "name": "storage",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    },
+    {
+      "name": "orchestrator",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "Multi-modal media engines supporting Image, Audio, and Video asset generation",
+        "UnifiedMediaGateway dispatching modal requests across specialized engines and provider routes",
+        "SafetyModerator screening prompts and generated media against safety and content policies",
+        "PromptTemplateRegistry supporting parameterized styles, aspect ratios, and negative prompts",
+        "MediaGallery cataloging generated artifacts with cryptographic SHA-256 digests and storage URIs",
+        "AsyncMediaJobQueue managing priority, job state lifecycle, and user cancellations"
+      ],
+      "breaking": false
+    }
+  ]
+}

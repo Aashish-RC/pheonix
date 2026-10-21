@@ -1,0 +1,29 @@
+{
+  "name": "tools_mcp",
+  "version": "0.1.0",
+  "description": "Pheonix Curated Tool and Model Context Protocol (MCP) Registry with On-Demand Credential Activation",
+  "dependencies": [
+    {
+      "name": "permissions",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    },
+    {
+      "name": "vault",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "Curated tool catalog supporting Builtin, Custom, MCP, and external Connector types",
+        "Idle-until-needed rule: connectors ask for credentials strictly when used",
+        "OnDemandAuthBridge request queue for lazy credential resolution",
+        "Model Context Protocol (MCP) JSON-RPC 2.0 discovery (tools/list) and execution (tools/call)",
+        "ToolDispatcher executing tools with parameter schemas and execution metrics"
+      ],
+      "breaking": false
+    }
+  ]
+}

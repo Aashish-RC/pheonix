@@ -1,0 +1,24 @@
+{
+  "name": "web-search",
+  "version": "0.1.0",
+  "description": "Pheonix Web Search, Polite Scraping, and Grounded Source-Support Citation Verification",
+  "dependencies": [
+    {
+      "name": "search",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "Multi-provider web search adapters: DuckDuckGo, Brave, and offline mock fixture",
+        "Polite web scraper with boilerplate and ad stripping to clean Markdown",
+        "Source-support and hallucination verifier with lexical and n-gram overlap scoring",
+        "Verifiable structured citations with URL, quote text, content hash, and timestamp"
+      ],
+      "breaking": false
+    }
+  ]
+}

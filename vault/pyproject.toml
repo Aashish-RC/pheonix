@@ -1,0 +1,15 @@
+[project]
+name = "pheonix-vault"
+version = "0.1.0"
+description = "Pheonix Zero-Plaintext Cryptographic Vault and Key Store"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "cryptography>=43.0.0",
+    "pydantic>=2.0.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]

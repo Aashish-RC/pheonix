@@ -1,0 +1,27 @@
+{
+  "name": "voice_speech",
+  "version": "0.1.0",
+  "description": "Pheonix Voice and Speech Engine with Dictation, Speech Synthesis, and Duplex Conversational Session Runner",
+  "dependencies": [
+    {
+      "name": "model-gateway",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    },
+    {
+      "name": "storage",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "DictationEngine supporting VAD speech-to-text audio transcription and confidence scoring",
+        "SpeechSynthesizer rendering agent response text into valid RIFF WAV audio waveforms",
+        "VoiceSessionRunner managing full-duplex conversational turn-taking and barge-in interruptions"
+      ],
+      "breaking": false
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "name": "serving",
+  "version": "0.1.0",
+  "description": "Pheonix Local Model Serving: Device Profiling, Resource Limits & Offline Inference",
+  "dependencies": [
+    {
+      "name": "model_gateway",
+      "version_requirement": ">=0.1.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "Hardware device profiler (CPU, RAM, GPU, VRAM, DirectML/CUDA)",
+        "Resource limiter enforcing RAM/VRAM safety and stream concurrency",
+        "Local model store indexing GGUF/quantized artifacts",
+        "Runtime adapters for Ollama, llama.cpp, and offline hermetic simulator"
+      ],
+      "breaking": false
+    }
+  ]
+}

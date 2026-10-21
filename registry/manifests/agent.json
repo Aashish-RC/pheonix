@@ -1,0 +1,29 @@
+{
+  "name": "agent",
+  "version": "0.1.0",
+  "description": "Pheonix Agent Framework and Sandboxed Execution",
+  "dependencies": [
+    {
+      "component_name": "memory",
+      "version_constraint": ">=0.1.0, <1.0.0",
+      "optional": false
+    },
+    {
+      "component_name": "model-gateway",
+      "version_constraint": ">=0.1.0, <1.0.0",
+      "optional": false
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "Initial release: Builder, executor, and sandbox execution",
+        "Agent manifest parsing and memory integration",
+        "Guardrail hooks and voice scaffolding"
+      ],
+      "breaking": false
+    }
+  ]
+}

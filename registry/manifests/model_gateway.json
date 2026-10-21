@@ -1,0 +1,24 @@
+{
+  "name": "model-gateway",
+  "version": "0.1.0",
+  "description": "Unified, High-Performance, Resilient AI Model Gateway",
+  "dependencies": [
+    {
+      "component_name": "vault",
+      "version_constraint": ">=0.1.0, <1.0.0",
+      "optional": false
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "Initial release: Multi-provider unified routing and fallbacks",
+        "SSRF, token counting, and rate limiting engines",
+        "Embeddings, completions, and messages endpoints"
+      ],
+      "breaking": false
+    }
+  ]
+}

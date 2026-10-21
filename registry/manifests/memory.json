@@ -1,0 +1,28 @@
+{
+  "name": "memory",
+  "version": "0.2.0",
+  "description": "Pheonix Unified Tiered Memory Engine",
+  "dependencies": [],
+  "changelog": [
+    {
+      "version": "0.2.0",
+      "date": "2026-10-21",
+      "changes": [
+        "Step 13: Per-project memory isolation via project_id",
+        "Memory sources inspection view with SourceProvenance tracking",
+        "Granular memory edit and delete controls (done when recalled and deleted)"
+      ],
+      "breaking": false
+    },
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "Initial release: Tiered storage (hot, warm, cold)",
+        "SQLite facts database with Write-Ahead Logging",
+        "FastAPI memory server endpoints"
+      ],
+      "breaking": false
+    }
+  ]
+}

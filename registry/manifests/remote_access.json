@@ -1,0 +1,29 @@
+{
+  "name": "remote_access",
+  "version": "0.1.0",
+  "description": "Pheonix Remote Access, Cryptographic Device Pairing, E2E Encrypted Tunnels, and Relay Routing",
+  "dependencies": [
+    {
+      "name": "vault",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    },
+    {
+      "name": "auth",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "PairingCoordinator generating ephemeral PIN codes with TTL and single-use redemption enforcement",
+        "E2EEncryptedChannel establishing authenticated AES-256-GCM encrypted transport with HKDF key derivation",
+        "PathSelector discovering direct local subnet reachability vs relay fallback routes",
+        "EncryptedRelayRouter forwarding ciphertext frames across network barriers with zero knowledge",
+        "PairedDeviceRegistry maintaining device lifecycle, heartbeat tracking, and instant cryptographic revocation"
+      ],
+      "breaking": false
+    }
+  ]
+}

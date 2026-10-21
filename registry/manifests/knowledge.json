@@ -1,0 +1,28 @@
+{
+  "name": "knowledge",
+  "version": "0.1.0",
+  "description": "Pheonix Knowledge and Docs Engine: Notes, Grounded Notebooks, and Memory Sync",
+  "dependencies": [
+    {
+      "name": "storage",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    },
+    {
+      "name": "memory",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "Notes Engine: Atomic markdown notes with frontmatter, tags, and wiki-links [[Target]]",
+        "Knowledge Graph: Bidirectional backlink resolution and network mapping",
+        "Source-Grounded Notebooks: Multi-cell sessions with verified SHA-256 citation anchors",
+        "Memory Ingestion Bridge: Seamless sync of notes and notebook syntheses into MemoryEngine"
+      ],
+      "breaking": false
+    }
+  ]
+}

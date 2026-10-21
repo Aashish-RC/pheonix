@@ -1,0 +1,36 @@
+{
+  "name": "sync_engine",
+  "version": "0.1.0",
+  "description": "Pheonix State Synchronization Engine, CRDT Conflict Resolution, and Delta Replication",
+  "dependencies": [
+    {
+      "name": "auth",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    },
+    {
+      "name": "storage",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    },
+    {
+      "name": "memory",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    },
+    {
+      "name": "remote_access",
+      "version_requirement": ">=0.1.0, <1.0.0"
+    }
+  ],
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-21",
+      "changes": [
+        "DeltaChangeTracker recording local mutations across entities with increasing Lamport clocks",
+        "ConflictResolver enforcing deterministic Last-Write-Wins and tie-break resolution without data loss",
+        "SyncProtocol packaging delta mutations with SHA-256 cryptographic signatures and corruption detection",
+        "Domain synchronizers for Chat sessions, Memory facts, and System configuration preferences"
+      ],
+      "breaking": false
+    }
+  ]
+}
