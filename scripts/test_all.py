@@ -35,23 +35,58 @@ def log_header(title: str):
     print(f">> {title}")
     print(f"{'=' * 60}")
 
-def run_step(name: str, cmd: list[str], cwd: Path) -> bool:
+import re
+
+def parse_test_count(output: str) -> int:
+    """Extracts test count from pytest or vitest terminal output."""
+    # Vitest format: Tests  X passed (X)
+    vitest_match = re.search(r"Tests\s+(\d+)\s+passed", output)
+    if vitest_match:
+        return int(vitest_match.group(1))
+
+    # Pytest format: == X passed in Ys ==
+    pytest_match = re.search(r"(=+\s*(\d+)\s+passed|collected\s+(\d+)\s+items)", output)
+    if pytest_match:
+        return int(pytest_match.group(2) or pytest_match.group(3))
+
+    # Fallback to any '\b\d+ passed\b'
+    generic_match = re.search(r"(\d+)\s+passed", output)
+    if generic_match:
+        return int(generic_match.group(1))
+
+    return 0
+
+def run_step(name: str, cmd: list[str], cwd: Path) -> tuple[bool, int, float]:
     log_header(f"Running: {name} in {cwd.relative_to(ROOT_DIR)}")
     start = time.time()
     try:
         is_windows = sys.platform.startswith("win")
-        result = subprocess.run(cmd, cwd=cwd, shell=is_windows)
+        result = subprocess.run(
+            cmd,
+            cwd=cwd,
+            shell=is_windows,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace"
+        )
         duration = time.time() - start
+        output = result.stdout or ""
+        test_count = parse_test_count(output)
+
         if result.returncode == 0:
-            print(f"[PASS] {name} completed in {duration:.2f}s")
-            return True
+            print(output[-800:] if len(output) > 800 else output)
+            print(f"[PASS] {name} completed: {test_count} tests in {duration:.2f}s")
+            return True, test_count, duration
         else:
+            print(output[-1200:] if len(output) > 1200 else output)
             print(f"[FAIL] {name} failed with code {result.returncode} in {duration:.2f}s")
-            return False
+            return False, test_count, duration
     except Exception as e:
         duration = time.time() - start
         print(f"[ERROR] {name} error: {e} in {duration:.2f}s")
-        return False
+        return False, 0, duration
 
 def main():
     print("Starting Pheonix Unified Test Suite across all layers...")
@@ -95,26 +130,40 @@ def main():
     ]
 
     results = []
+    total_tests = 0
     for name, cmd, cwd in steps:
         if not cwd.exists():
             print(f"[SKIP] Directory {cwd} does not exist, skipping {name}")
-            results.append((name, False))
+            results.append((name, False, 0, 0.0))
             continue
-        passed = run_step(name, cmd, cwd)
-        results.append((name, passed))
+        passed, count, duration = run_step(name, cmd, cwd)
+        total_tests += count
+        results.append((name, passed, count, duration))
 
     total_duration = time.time() - start_total
-    log_header("Test Summary")
-    all_passed = True
-    for name, passed in results:
-        status_text = "[PASS]" if passed else "[FAIL]"
-        print(f" - {name:<30}: {status_text}")
-        if not passed:
-            all_passed = False
+    all_passed = all(p for _, p, _, _ in results)
 
-    print(f"\nTotal execution time: {total_duration:.2f}s")
+    # Formatted aligned matrix output
+    sep_line = "=" * 80
+    sub_sep = "-" * 80
+    print(f"\n{sep_line}")
+    print(f"{'Pheonix Test Suite Matrix (34 Modules)':^80}")
+    print(f"{sep_line}")
+    print(f"{'Module':<45} | {'Tests':>8} | {'Duration':>10} | {'Status':^8}")
+    print(sub_sep)
+
+    for name, passed, count, duration in results:
+        status_str = "PASS" if passed else "FAIL"
+        count_str = str(count) if count > 0 else "-"
+        print(f"{name:<45} | {count_str:>8} | {duration:>9.2f}s | {status_str:^8}")
+
+    print(sep_line)
+    summary_status = "ALL PASSED" if all_passed else "FAILED"
+    print(f"{'TOTAL: 34 Modules':<45} | {total_tests:>8} | {total_duration:>9.2f}s | {summary_status:^8}")
+    print(f"{sep_line}\n")
+
     if all_passed:
-        print("[SUCCESS] All test suites passed successfully!\n")
+        print(f"[SUCCESS] All {len(results)} module test suites passed ({total_tests} tests in {total_duration:.2f}s).\n")
         sys.exit(0)
     else:
         print("[FAILURE] Some test suites failed.\n")

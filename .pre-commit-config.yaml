@@ -1,0 +1,32 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: '\.md$'
+      - id: end-of-file-fixer
+        exclude: '\.md$'
+      - id: check-yaml
+        args: [--unsafe]
+      - id: check-added-large-files
+        args: ['--maxkb=5000']
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.8
+    hooks:
+      - id: ruff
+        args: [--fix]
+        exclude: '^(model-gateway|node_modules|\.git)/'
+      - id: ruff-format
+        exclude: '^(model-gateway|node_modules|\.git)/'
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        files: '^(vault|auth|guardrails)/'
+        args: [--ignore-missing-imports, --explicit-package-bases]
+        additional_dependencies:
+          - pydantic>=2.6.0
+          - cryptography>=43.0.0
+          - fastapi>=0.110.0
