@@ -314,5 +314,41 @@ describe('Auto Routing & Capability Matrix (Step 7)', () => {
     expect(activatedDecision.model).toBe('gpt-4o-mini');
     expect(activatedDecision.targetAlias).toBe('fast-tier');
   });
+
+  it('Task 1.3: autoSelectModel queries the recommender service and returns its recommended model', async () => {
+    const router = AutoRouter.getInstance();
+
+    router.setRecommenderClient(async (payload) => {
+      expect(payload.userTier).toBe('enterprise');
+      expect(payload.taskClassification).toBe('code_optimization');
+      return {
+        recommendedModel: 'claude-3-7-sonnet-20250219',
+        provider: 'anthropic',
+        targetAlias: 'smart-tier',
+        reasoning: 'Recommender empirical benchmark scored 98.4 on reasoning trade-offs'
+      };
+    });
+
+    try {
+      const decision = await router.autoSelectModel(
+        {
+          model: 'auto',
+          messages: [{ role: 'user', content: 'Refactor this kernel.' }]
+        },
+        {
+          userTier: 'enterprise',
+          taskClassification: 'code_optimization',
+          latencySensitivity: 'low'
+        }
+      );
+
+      expect(decision.model).toBe('claude-3-7-sonnet-20250219');
+      expect(decision.targetAlias).toBe('smart-tier');
+      expect(decision.oneLineReason).toContain('Recommender service decision: Recommender empirical benchmark');
+    } finally {
+      router.setRecommenderClient(undefined);
+    }
+  });
 });
+
 

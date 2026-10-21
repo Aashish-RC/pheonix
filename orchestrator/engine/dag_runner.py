@@ -153,6 +153,20 @@ class ParallelDAGRunner(BaseDAGRunner):
             node.status = TaskStatus.COMPLETED
             node.duration_ms = duration_ms
 
+            # Task 1.2: Cross-module telemetry emission
+            try:
+                from observability.core.tracer import TelemetryCollector
+                TelemetryCollector.get_instance().emit(
+                    module="orchestrator",
+                    operation="dag_step",
+                    duration_ms=duration_ms,
+                    status_code=200,
+                    trace_id=context.get("_trace_id"),
+                    metadata={"node_id": node.id, "action": node.action, "title": node.title},
+                )
+            except Exception:
+                pass
+
             return StepResult(
                 node_id=node.id,
                 status=TaskStatus.COMPLETED,
@@ -164,6 +178,20 @@ class ParallelDAGRunner(BaseDAGRunner):
             node.error = str(e)
             node.status = TaskStatus.FAILED
             node.duration_ms = duration_ms
+
+            # Task 1.2: Cross-module telemetry emission on failure
+            try:
+                from observability.core.tracer import TelemetryCollector
+                TelemetryCollector.get_instance().emit(
+                    module="orchestrator",
+                    operation="dag_step",
+                    duration_ms=duration_ms,
+                    status_code=500,
+                    trace_id=context.get("_trace_id"),
+                    metadata={"node_id": node.id, "action": node.action, "error": str(e)},
+                )
+            except Exception:
+                pass
 
             return StepResult(
                 node_id=node.id,

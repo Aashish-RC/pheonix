@@ -13,9 +13,25 @@ export interface AutoRouteDecision {
   isOverride: boolean;
 }
 
+export interface RecommenderQueryPayload {
+  userTier?: string;
+  taskClassification?: string;
+  latencySensitivity?: 'low' | 'medium' | 'high';
+  budgetMaxUsd?: number;
+  promptSnippet?: string;
+}
+
+export interface RecommenderResponse {
+  recommendedModel: string;
+  provider: string;
+  targetAlias?: string;
+  reasoning: string;
+}
+
 export class AutoRouter {
   private static instance: AutoRouter;
   private matrix: CapabilityMatrix;
+  private customRecommenderClient?: (payload: RecommenderQueryPayload) => Promise<RecommenderResponse>;
 
   private constructor() {
     this.matrix = CapabilityMatrix.getInstance();
@@ -26,6 +42,58 @@ export class AutoRouter {
       AutoRouter.instance = new AutoRouter();
     }
     return AutoRouter.instance;
+  }
+
+  public setRecommenderClient(client?: (payload: RecommenderQueryPayload) => Promise<RecommenderResponse>): void {
+    this.customRecommenderClient = client;
+  }
+
+  public async autoSelectModel(
+    req: ChatCompletionRequest,
+    options?: RecommenderQueryPayload,
+    manualOverride?: string
+  ): Promise<AutoRouteDecision> {
+    if (manualOverride && manualOverride.trim() !== '') {
+      return this.route(req, manualOverride);
+    }
+
+    const recommenderUrl = process.env.RECOMMENDER_SERVICE_URL;
+    if (this.customRecommenderClient || recommenderUrl) {
+      try {
+        const payload: RecommenderQueryPayload = {
+          userTier: options?.userTier || 'standard',
+          taskClassification: options?.taskClassification || (req.tools?.length ? 'tool_call' : 'chat'),
+          latencySensitivity: options?.latencySensitivity || 'medium',
+          budgetMaxUsd: options?.budgetMaxUsd,
+          promptSnippet: typeof req.messages[0]?.content === 'string' ? req.messages[0].content.slice(0, 100) : ''
+        };
+
+        let result: RecommenderResponse;
+        if (this.customRecommenderClient) {
+          result = await this.customRecommenderClient(payload);
+        } else {
+          const res = await fetch(`${recommenderUrl}/recommend`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          result = (await res.json()) as RecommenderResponse;
+        }
+
+        if (result && result.recommendedModel) {
+          return {
+            model: result.recommendedModel,
+            targetAlias: result.targetAlias || result.recommendedModel,
+            oneLineReason: `Recommender service decision: ${result.reasoning}`,
+            isOverride: false
+          };
+        }
+      } catch (err) {
+        // Fall back gracefully to internal capability matrix heuristic
+      }
+    }
+
+    return this.route(req, manualOverride);
   }
 
   public route(
