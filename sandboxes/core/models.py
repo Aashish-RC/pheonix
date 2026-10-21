@@ -21,12 +21,24 @@ class SandboxStatus(str, Enum):
     TERMINATED = "terminated"
 
 
+import os
+
+
+class SandboxTimeoutError(TimeoutError):
+    """Raised when sandbox execution exceeds configured timeout limit."""
+    pass
+
+
 class ResourceLimits(BaseModel):
     """Enforced computational and security constraints."""
     model_config = ConfigDict(extra="ignore")
 
-    timeout_seconds: float = 5.0
-    max_memory_mb: int = 512
+    timeout_seconds: float = Field(
+        default_factory=lambda: float(os.getenv("SANDBOX_TIMEOUT_SECONDS", "30.0"))
+    )
+    max_memory_mb: int = Field(
+        default_factory=lambda: int(os.getenv("SANDBOX_MEMORY_MB", "512"))
+    )
     max_output_bytes: int = 65536
     network_access: bool = False
     allow_env_vars: List[str] = Field(

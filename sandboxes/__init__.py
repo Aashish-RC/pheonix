@@ -5,11 +5,16 @@ from .core.models import (
     ResourceLimits,
     ExecutionRequest,
     SandboxResult,
+    SandboxTimeoutError,
 )
 from .core.interfaces import (
     BaseSecurityGovernor,
     BaseDeviceRunner,
     BaseSandboxManager,
+)
+from .core.engines import (
+    E2BExecutionEngine,
+    DockerExecutionEngine,
 )
 from .governor.security_governor import SecurityGovernor
 from .runner.local_process_runner import LocalProcessRunner
@@ -21,9 +26,12 @@ __all__ = [
     "ResourceLimits",
     "ExecutionRequest",
     "SandboxResult",
+    "SandboxTimeoutError",
     "BaseSecurityGovernor",
     "BaseDeviceRunner",
     "BaseSandboxManager",
+    "E2BExecutionEngine",
+    "DockerExecutionEngine",
     "SecurityGovernor",
     "LocalProcessRunner",
     "DeviceRunner",

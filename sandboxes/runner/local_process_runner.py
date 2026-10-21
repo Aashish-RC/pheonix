@@ -17,7 +17,7 @@ class LocalProcessRunner(BaseDeviceRunner):
         self.governor = governor
 
     def execute(self, request: ExecutionRequest, scratch_dir: str) -> SandboxResult:
-        scratch_path = Path(scratch_dir)
+        scratch_path = Path(scratch_dir).resolve()
         scratch_path.mkdir(parents=True, exist_ok=True)
 
         # Write any virtual input files into scratchpad
