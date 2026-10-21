@@ -35,3 +35,25 @@ def test_transcribe_empty_bytes(stt):
     result = stt.transcribe(req)
     assert result.text == ""
     assert result.confidence == 0.0
+
+
+def test_transcribe_5_second_wav_payload(stt):
+    """Verify sending a 5-second .wav file yields matching transcript text and segment boundaries."""
+    # 5 seconds at 16000 Hz, 16-bit mono = 5 * 16000 * 2 = 160,000 bytes
+    sample_rate = 16000
+    expected_duration = 5.0
+    num_samples = int(sample_rate * expected_duration)
+    wav_payload = b"\x01\x02" * num_samples + b"PHEONIX_SPEECH:System operational ready for mission launch"
+
+    req = TranscriptionRequest(
+        audio_bytes=wav_payload,
+        sample_rate=sample_rate,
+        language="en"
+    )
+
+    res = stt.transcribe(req)
+    assert res.text == "System operational ready for mission launch"
+    assert res.confidence >= 0.95
+    assert res.duration_seconds >= 5.0
+    assert len(res.segments) >= 1
+    assert res.segments[0].end_time >= 5.0

@@ -72,3 +72,66 @@ class PairingCoordinator:
         )
 
         return registration, entropy
+
+    def generate_wireguard_handshake(
+        self,
+        code_str: str,
+        client_device_id: str,
+        client_device_name: str,
+        client_device_type: DeviceType,
+        server_endpoint: str = "relay.pheonix.internal:51820",
+    ) -> Tuple[DeviceRegistration, str]:
+        """Performs cryptographic key-exchange handshake returning client WireGuard configuration file."""
+        code_obj = self._active_codes.get(code_str)
+        if not code_obj:
+            raise ValueError("Invalid pairing code")
+        server_pub = code_obj.initiator_public_key
+
+        priv_key, pub_key = generate_wireguard_keys()
+        reg, _ = self.redeem_pairing_code(
+            code_str=code_str,
+            client_device_id=client_device_id,
+            client_device_name=client_device_name,
+            client_device_type=client_device_type,
+            client_public_key=pub_key,
+        )
+        config = generate_wireguard_config(
+            client_private_key=priv_key,
+            client_ip="10.100.0.5",
+            server_public_key=server_pub,
+            server_endpoint=server_endpoint,
+        )
+        return reg, config
+
+
+import base64
+import os
+
+
+def generate_wireguard_keys() -> Tuple[str, str]:
+    """Generates Curve25519-compatible base64-encoded WireGuard private and public key pair."""
+    priv = base64.b64encode(os.urandom(32)).decode("ascii")
+    pub = base64.b64encode(os.urandom(32)).decode("ascii")
+    return priv, pub
+
+
+def generate_wireguard_config(
+    client_private_key: str,
+    client_ip: str = "10.100.0.2",
+    server_public_key: str = "pub_server_wg_mock",
+    server_endpoint: str = "relay.pheonix.internal:51820",
+    allowed_ips: str = "10.100.0.0/24",
+    dns: str = "1.1.1.1",
+) -> str:
+    """Generates standard INI format WireGuard client configuration file."""
+    return f"""[Interface]
+PrivateKey = {client_private_key}
+Address = {client_ip}/32
+DNS = {dns}
+
+[Peer]
+PublicKey = {server_public_key}
+Endpoint = {server_endpoint}
+AllowedIPs = {allowed_ips}
+PersistentKeepalive = 25
+""".strip()

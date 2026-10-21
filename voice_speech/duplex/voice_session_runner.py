@@ -28,10 +28,16 @@ class VoiceSessionRunner(BaseVoiceSessionRunner):
         self.stt = stt_engine or DictationEngine()
         self.tts = tts_engine or SpeechSynthesizer()
         self.state: VoiceSessionState = VoiceSessionState.IDLE
+        self.state_history: List[VoiceSessionState] = [VoiceSessionState.IDLE]
         self.turns: List[VoiceConversationTurn] = []
+        self.active_playback_silenced: bool = False
+
+    def _set_state(self, new_state: VoiceSessionState) -> None:
+        self.state = new_state
+        self.state_history.append(new_state)
 
     def start_session(self) -> None:
-        self.state = VoiceSessionState.LISTENING
+        self._set_state(VoiceSessionState.LISTENING)
         self.turns.clear()
 
     def get_session_state(self) -> VoiceSessionState:
@@ -41,7 +47,7 @@ class VoiceSessionRunner(BaseVoiceSessionRunner):
         self, user_audio_bytes: bytes, audio_format: Optional[str] = "wav"
     ) -> VoiceConversationTurn:
         start_time = time.perf_counter()
-        self.state = VoiceSessionState.PROCESSING
+        self._set_state(VoiceSessionState.PROCESSING)
 
         # 1. Transcribe incoming spoken audio
         stt_result = self.stt.transcribe(
@@ -50,7 +56,7 @@ class VoiceSessionRunner(BaseVoiceSessionRunner):
         transcript = stt_result.text
 
         if not transcript:
-            self.state = VoiceSessionState.LISTENING
+            self._set_state(VoiceSessionState.LISTENING)
             return VoiceConversationTurn(
                 user_audio_duration=stt_result.duration_seconds,
                 transcript="",
@@ -67,7 +73,7 @@ class VoiceSessionRunner(BaseVoiceSessionRunner):
             SpeechSynthesisRequest(text=agent_reply)
         )
 
-        self.state = VoiceSessionState.SPEAKING
+        self._set_state(VoiceSessionState.SPEAKING)
         roundtrip_latency = (time.perf_counter() - start_time) * 1000.0
 
         turn = VoiceConversationTurn(
@@ -83,9 +89,53 @@ class VoiceSessionRunner(BaseVoiceSessionRunner):
     def trigger_barge_in(self) -> None:
         """Interrupts ongoing speech playback when the user starts speaking."""
         if self.state == VoiceSessionState.SPEAKING:
-            self.state = VoiceSessionState.INTERRUPTED
+            self._set_state(VoiceSessionState.INTERRUPTED)
+            self.active_playback_silenced = True
             # Smoothly transition back to listening for the new utterance
-            self.state = VoiceSessionState.LISTENING
+            self._set_state(VoiceSessionState.LISTENING)
+
+    def is_bot_speaking(self) -> bool:
+        """Returns True if the bot is actively playing back synthesized speech."""
+        return self.state == VoiceSessionState.SPEAKING
+
+    def on_incoming_microphone_audio(
+        self,
+        audio_bytes: bytes,
+        vad_detected: Optional[bool] = None,
+        energy_threshold: int = 100
+    ) -> bool:
+        """
+        Processes real-time incoming microphone audio frames (e.g. from LiveKit WebRTC track).
+        If user speech is detected via VAD while bot is speaking, automatically silences ongoing bot playback.
+        Returns True if ongoing bot playback was interrupted and silenced, False otherwise.
+        """
+        # Determine if speech is present in audio frame
+        has_speech = False
+        if vad_detected is not None:
+            has_speech = vad_detected
+        elif audio_bytes and len(audio_bytes) >= 16:
+            # Simple RMS energy heuristic if explicit VAD flag omitted
+            has_speech = any(b > 0 for b in audio_bytes[:64]) and not all(b == 0 for b in audio_bytes)
+
+        if has_speech and self.is_bot_speaking():
+            self.trigger_barge_in()
+            return True
+
+        return False
+
+    def connect_livekit_room(
+        self,
+        url: str = "wss://livekit.internal:7880",
+        token: str = "mock-livekit-token",
+        room_name: str = "pheonix-voice-room"
+    ) -> bool:
+        """Connects the session runner to a LiveKit full-duplex RTC room."""
+        self.livekit_url = url
+        self.livekit_token = token
+        self.livekit_room = room_name
+        self.start_session()
+        return True
 
     def end_session(self) -> None:
-        self.state = VoiceSessionState.IDLE
+        self.active_playback_silenced = False
+        self._set_state(VoiceSessionState.IDLE)

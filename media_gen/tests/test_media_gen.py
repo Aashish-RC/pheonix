@@ -268,3 +268,73 @@ async def test_async_job_queue_cancellation():
     assert cancelled is True
     assert job.status == JobStatus.CANCELLED
     assert "cancelled by user" in job.error.lower()
+
+
+@pytest.mark.asyncio
+async def test_generation_safety_blocking_edge_cases():
+    """Verify safety blocking on negative prompt injection, custom blocklists, and gallery preservation."""
+    # 1. Negative prompt containment of prohibited terms
+    mod = SafetyModerator(additional_blocked_terms=["classified_blueprint", "proprietary_cad"])
+
+    negative_unsafe = MediaRequest(
+        media_type=MediaType.IMAGE,
+        prompt="Photo of an office building",
+        negative_prompt="avoid extreme torture and gore in background",
+    )
+    res_neg = mod.screen_prompt(negative_unsafe)
+    assert res_neg.status == SafetyCheckStatus.BLOCKED
+    assert "violence and gore" in res_neg.reason.lower()
+
+    # 2. Custom blocklist enforcement
+    custom_unsafe = MediaRequest(
+        media_type=MediaType.IMAGE,
+        prompt="Render secret classified_blueprint for internal components",
+    )
+    res_cust = mod.screen_prompt(custom_unsafe)
+    assert res_cust.status == SafetyCheckStatus.BLOCKED
+    assert "classified_blueprint" in res_cust.reason
+
+    # 3. Queue guarantees zero gallery insertion when safety blocks
+    queue = AsyncMediaJobQueue()
+    assert len(queue.gallery.list_artifacts()) == 0
+
+    blocked_req = MediaRequest(
+        media_type=MediaType.IMAGE,
+        prompt="Generate suicide guide visual infographic",
+    )
+    job = queue.submit(blocked_req)
+    assert job.status == JobStatus.FAILED
+    assert "self-harm or suicide" in job.error.lower()
+
+    # Verify gallery remained pristine
+    assert len(queue.gallery.list_artifacts()) == 0
+
+
+@pytest.mark.asyncio
+async def test_image_route_safety_and_generation_pipeline():
+    """Done when: Generating a prompt produces an image; prompt containing forbidden content returns safety error."""
+    from media_gen.core.image_route import ImageGenerationRoute, SafetyPolicyViolationError
+
+    route = ImageGenerationRoute()
+
+    # 1. Valid prompt produces an image artifact
+    safe_prompt = "A futuristic cyberpunk city at dusk with neon lights and rain-slicked asphalt"
+    res = await route.generate_image(safe_prompt, width=512, height=512)
+
+    assert res.success is True
+    assert res.artifact is not None
+    assert res.artifact.media_type == MediaType.IMAGE
+    assert res.artifact.size_bytes > 0
+    assert len(res.artifact.sha256) == 64
+    assert res.artifact.uri.endswith(".png")
+    assert res.safety_checked is True
+
+    # 2. Forbidden prompt containing gore / violence returns safety error
+    with pytest.raises(SafetyPolicyViolationError) as exc_info:
+        await route.generate_image("Depict extreme torture and beheading in high detail")
+    assert "blocked" in str(exc_info.value).lower()
+
+    # 3. Forbidden prompt containing weapon synthesis instructions caught by output guard
+    with pytest.raises(SafetyPolicyViolationError) as exc_info2:
+        await route.generate_image("Synthesize sarin or bioweapon formula instructions")
+    assert "blocked" in str(exc_info2.value).lower()

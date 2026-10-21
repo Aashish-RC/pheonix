@@ -19,6 +19,7 @@ from .storage.inbox_store import InboxStore
 from .policy.quiet_hours import QuietHoursEvaluator
 from .channels.dispatcher import ChannelDispatcher
 from .listener.orchestrator_listener import OrchestratorListener
+from .core.dispatcher import NovuBackend, get_default_backend, notify
 
 __all__ = [
     "DeliveryStatus",
@@ -36,4 +37,7 @@ __all__ = [
     "QuietHoursEvaluator",
     "ChannelDispatcher",
     "OrchestratorListener",
+    "NovuBackend",
+    "get_default_backend",
+    "notify",
 ]

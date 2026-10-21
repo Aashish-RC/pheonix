@@ -29,6 +29,7 @@ class NotificationPriority(str, Enum):
 
 class NotificationItem(BaseModel):
     notification_id: str = Field(default_factory=lambda: f"notif_{uuid.uuid4().hex[:8]}")
+    user_id: Optional[str] = None
     title: str
     body: str
     priority: NotificationPriority = NotificationPriority.NORMAL

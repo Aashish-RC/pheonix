@@ -11,8 +11,13 @@ from remote_access.core.models import (
     PairingCode,
     PathType,
 )
-from remote_access.core.pairing import PairingCoordinator
+from remote_access.core.pairing import (
+    PairingCoordinator,
+    generate_wireguard_keys,
+    generate_wireguard_config,
+)
 from remote_access.core.path_selector import PathSelector
+from remote_access.core.relay import AdaptiveRelayChannel
 from remote_access.relay.relay_service import EncryptedRelayRouter
 
 __all__ = [
@@ -23,8 +28,11 @@ __all__ = [
     "DeviceRegistration",
     "EncryptedFrame",
     "PairingCoordinator",
+    "generate_wireguard_keys",
+    "generate_wireguard_config",
     "E2EEncryptedChannel",
     "PairedDeviceRegistry",
     "PathSelector",
+    "AdaptiveRelayChannel",
     "EncryptedRelayRouter",
 ]

@@ -29,9 +29,13 @@ class InboxStore(BaseInboxStore):
         channel: Optional[NotificationChannel] = None,
         unread_only: bool = False,
         limit: int = 50,
+        user_id: Optional[str] = None,
     ) -> List[NotificationItem]:
         with self._lock:
             results = list(self._items.values())
+
+            if user_id is not None:
+                results = [item for item in results if item.user_id == user_id]
 
             if channel is not None:
                 results = [item for item in results if channel in item.channels]
@@ -42,6 +46,9 @@ class InboxStore(BaseInboxStore):
             # Sort descending by timestamp
             results.sort(key=lambda x: x.created_at, reverse=True)
             return results[:limit]
+
+    def get_user_feed(self, user_id: str, limit: int = 50) -> List[NotificationItem]:
+        return self.list_notifications(user_id=user_id, limit=limit)
 
     def mark_as_read(self, notification_id: str) -> bool:
         with self._lock:

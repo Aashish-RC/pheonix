@@ -208,3 +208,51 @@ async def test_gateway_translation_engine_fallback():
 
     translated = await gateway_engine.translate("Hello", "en", "de")
     assert translated == "Hallo"
+
+
+def test_unsupported_locale_language_fallback():
+    """Verify fallback when an unsupported locale is requested."""
+    i18n = LocalizationManager(default_locale="en")
+
+    # 1. Totally unknown/unsupported locale code falls back cleanly to 'en'
+    res_unknown = i18n.t("status_idle", locale="xx-klingon")
+    assert res_unknown == "Idle"
+
+    # 2. Key with parameters on unsupported locale
+    res_task = i18n.t("task_completed", locale="unknown_locale", task_name="IndexFiles")
+    assert res_task == "Task 'IndexFiles' completed successfully."
+
+    # 3. Non-existent key in both target and default bundles returns the raw key without exception
+    res_nonexistent = i18n.t("completely_missing_key", locale="unsupported")
+    assert res_nonexistent == "completely_missing_key"
+
+    # 4. Partial locale bundle missing a key falls back to default locale
+    i18n.register_bundle("pt", {"status_idle": "Inativo"})
+    assert i18n.t("status_idle", locale="pt") == "Inativo"
+    # missing key in pt falls back to en
+    assert i18n.t("error_network", locale="pt") == "Network connection error."
+
+
+def test_offline_translation_engine_adapter():
+    """Done when: translate('Bonjour', target='en') returns 'Hello'."""
+    from translation.core.engine import OfflineTranslationEngine, translate
+
+    # 1. Verification Gate: translate("Bonjour", target="en") returns "Hello"
+    result = translate("Bonjour", target="en")
+    assert result == "Hello"
+
+    # 2. Automatic language detection and translation for other languages
+    engine = OfflineTranslationEngine()
+    assert engine.translate("Bonjour", target="en") == "Hello"
+    assert engine.translate("Hola", target="en") == "Hello"
+    assert engine.translate("Danke", target="en") == "Thank you"
+    assert engine.translate("Hello", target="es") == "Hola"
+    assert engine.translate("Hello", target="fr") == "Bonjour"
+
+    # 3. Cache verification
+    cached_entry = engine.cache.get("fr", "en", "Bonjour")
+    assert cached_entry is not None
+    assert cached_entry[0] == "Hello"
+
+    # 4. Same language no-op
+    assert engine.translate("Pheonix System", target="en", source="en") == "Pheonix System"
