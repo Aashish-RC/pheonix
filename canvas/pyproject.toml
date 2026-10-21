@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pheonix-canvas"
+version = "0.1.0"
+description = "Pheonix Visual Canvas Graph and Live Artifacts Engine"
+authors = [{ name = "Pheonix Engineering" }]
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["..", "."]
+asyncio_mode = "auto"
