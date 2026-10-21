@@ -19,6 +19,7 @@ from .engine.action_classifier import ActionClassifier
 from .engine.confirmation_rules import ConfirmationRulesGate
 from .runtime.session_runner import BrowserSessionRunner
 from .agent.browser_agent import BrowserAgent
+from .core.agent import BrowserUseAgent, BrowserUseAdapter
 
 __all__ = [
     "ActionRiskLevel",
@@ -36,4 +37,6 @@ __all__ = [
     "ConfirmationRulesGate",
     "BrowserSessionRunner",
     "BrowserAgent",
+    "BrowserUseAgent",
+    "BrowserUseAdapter",
 ]

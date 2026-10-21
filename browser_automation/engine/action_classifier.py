@@ -6,7 +6,7 @@ from ..core.interfaces import BaseActionClassifier
 from ..core.models import ActionRiskLevel, BrowserAction, BrowserActionType
 
 CONSEQUENTIAL_SELECTORS = [
-    re.compile(r"(?:submit|buy|checkout|purchase|pay|order|confirm-payment)", re.I),
+    re.compile(r"(?:submit|buy|checkout|purchase|pay|order|confirm-payment|confirm|payment)", re.I),
     re.compile(r"(?:delete|destroy|purge|remove|drop-table)", re.I),
     re.compile(r"(?:login|sign-in|authenticate|authorize|oauth)", re.I),
     re.compile(r"input\[type=['\"]?password['\"]?\]", re.I),

@@ -54,3 +54,22 @@ class SourceSupportCheck(BaseModel):
     support_score: float = Field(..., ge=0.0, le=1.0, description="Confidence score [0..1]")
     supporting_quote: Optional[str] = Field(default=None, description="Best matching evidence sentence")
     citation: Optional[WebCitation] = Field(default=None, description="Structured citation anchor")
+
+
+class SearchResult(BaseModel):
+    """Aggregated web search and scraped content result with verifiable citations."""
+    model_config = ConfigDict(extra="ignore")
+
+    query: str
+    results: List[WebSearchResultItem] = Field(default_factory=list)
+    citations: List[WebCitation] = Field(default_factory=list)
+    markdown_content: str = Field(default="", description="Consolidated markdown extract from search hits")
+
+    def __iter__(self):
+        return iter(self.results)
+
+    def __getitem__(self, idx):
+        return self.results[idx]
+
+    def __len__(self):
+        return len(self.results)

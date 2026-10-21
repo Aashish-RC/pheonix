@@ -12,9 +12,11 @@ def utc_now() -> datetime:
 
 class CorpusType(str, Enum):
     CHAT = "chat"
+    CONVERSATION = "conversation"
     FILE = "file"
     NOTE = "note"
     MEMORY = "memory"
+    ARTIFACT = "artifact"
 
 
 class SearchDocument(BaseModel):
