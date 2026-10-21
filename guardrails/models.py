@@ -8,14 +8,15 @@ from pydantic import BaseModel, Field
 
 
 SafetyAction = Literal["allow", "warn", "block", "redact", "crisis_intervention"]
-SeverityLevel = Literal["allow", "warn", "redact", "block", "crisis"]
+SeverityLevel = Literal["allow", "warn", "redact", "block", "strict", "crisis"]
 
 SEVERITY_ORDER = {
     "allow": 0,
     "warn": 1,
     "redact": 2,
     "block": 3,
-    "crisis": 4,
+    "strict": 4,
+    "crisis": 5,
 }
 
 ThreatCategory = Literal[
@@ -24,6 +25,11 @@ ThreatCategory = Literal[
     "pii_leak",
     "toxic_content",
     "crisis_self_harm",
+    "crisis_eating_disorder",
+    "crisis_domestic_violence",
+    "crisis_substance_crisis",
+    "crisis_disaster_distress",
+    "crisis_generic_distress",
     "harmful_output",
     "none"
 ]

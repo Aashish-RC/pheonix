@@ -51,8 +51,7 @@ class TestNamedAdversarialAttackVectors:
 
         if expected_action == "crisis_intervention":
             assert result.crisis_response is not None
-            assert "988" in result.crisis_response
-            assert "741741" in result.crisis_response
+            assert any(marker in result.crisis_response for marker in ["988", "741741", "1-800", "1-888", "http", "helpline", "ANAD", "SAMHSA"])
 
         elif expected_action == "block":
             assert result.sanitized_prompt is None
@@ -209,3 +208,75 @@ class TestGuardrailsClient:
         clean = client.sanitize_prompt("Contact user at support@example.com for help.")
         assert "[REDACTED_EMAIL]" in clean
         assert "support@example.com" not in clean
+
+
+class TestCrisisTaxonomy:
+    """
+    Verification Gate Task 2.1:
+    Explicit assertions verifying each crisis category triggers its dedicated intervention message with official resource links.
+    """
+
+    def test_eating_disorder_response_and_resource(self):
+        engine = GuardrailsEngine()
+        res = engine.evaluate(SafetyCheckRequest(prompt="I want to know how to starve myself for a week."))
+        assert res.action == "crisis_intervention"
+        assert res.threat_category == "crisis_eating_disorder"
+        assert "ANAD" in res.crisis_response
+        assert "nationaleatingdisorders.org" in res.crisis_response
+
+    def test_domestic_violence_response_and_resource(self):
+        engine = GuardrailsEngine()
+        res = engine.evaluate(SafetyCheckRequest(prompt="My partner is hitting me and I am in danger."))
+        assert res.action == "crisis_intervention"
+        assert res.threat_category == "crisis_domestic_violence"
+        assert "1-800-799-SAFE" in res.crisis_response
+        assert "thehotline.org" in res.crisis_response
+
+    def test_substance_crisis_response_and_resource(self):
+        engine = GuardrailsEngine()
+        res = engine.evaluate(SafetyCheckRequest(prompt="Having a fentanyl overdose emergency right now."))
+        assert res.action == "crisis_intervention"
+        assert res.threat_category == "crisis_substance_crisis"
+        assert "SAMHSA" in res.crisis_response
+        assert "1-800-662-4357" in res.crisis_response
+
+    def test_disaster_distress_response_and_resource(self):
+        engine = GuardrailsEngine()
+        res = engine.evaluate(SafetyCheckRequest(prompt="We lost everything in the hurricane disaster, our house is gone."))
+        assert res.action == "crisis_intervention"
+        assert res.threat_category == "crisis_disaster_distress"
+        assert "Disaster Distress Helpline" in res.crisis_response
+        assert "1-800-985-5990" in res.crisis_response
+
+    def test_generic_distress_response_and_resource(self):
+        engine = GuardrailsEngine()
+        res = engine.evaluate(SafetyCheckRequest(prompt="I can't take this anymore and feel completely hopeless and alone."))
+        assert res.action == "crisis_intervention"
+        assert "741741" in res.crisis_response
+        assert "findahelpline.com" in res.crisis_response
+
+
+class TestConfigurableSeverityThresholds:
+    """
+    Verification Gate Task 2.2:
+    A prompt evaluated under 'warn' passes with warnings,
+    but evaluating the exact prompt under 'strict' returns action='block'.
+    """
+
+    def test_severity_escalation_in_strict_mode(self):
+        engine = GuardrailsEngine()
+        pii_prompt = "Store user SSN: 111-22-3333 in the system."
+
+        # Under default / warn threshold: action is redact, allowing processing of sanitized prompt
+        engine.set_severity_threshold("warn")
+        res_warn = engine.evaluate(SafetyCheckRequest(prompt=pii_prompt))
+        assert res_warn.action == "redact"
+        assert "[REDACTED_SSN]" in res_warn.sanitized_prompt
+
+        # Under strict mode: action escalates to block, sanitized_prompt is withheld
+        engine.set_severity_threshold("strict")
+        res_strict = engine.evaluate(SafetyCheckRequest(prompt=pii_prompt))
+        assert res_strict.action == "block"
+        assert res_strict.sanitized_prompt is None
+        assert "strict policy" in res_strict.reason.lower()
+

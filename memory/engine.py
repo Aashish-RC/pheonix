@@ -1,5 +1,6 @@
 """Unified Memory Manager (Engine Facade API) orchestrating the 3 tiers and 4 stitches."""
 
+import time
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
@@ -31,6 +32,11 @@ from stitches.conflict_resolver import ConflictResolver
 from stitches.synthesizer import ContextSynthesizer
 from stitches.consolidation import ConsolidationEngine, ConsolidationResult
 from stitches.sources_view import MemorySourcesViewBuilder
+
+
+class SecurityPolicyViolationError(Exception):
+    """Raised when memory ingestion is blocked or intercepted by safety guardrails."""
+    pass
 
 
 class MemoryEngine:
@@ -118,26 +124,32 @@ class MemoryEngine:
         metadata = metadata or {}
         event_id = uuid4()
 
-        # W9: Guardrails inbound sanitization check (redact PII before storing)
-        if getattr(self, "guardrails_client", None):
+        # Task 1.1 / W9: Guardrails Pre-Write Filter for Memory Store
+        client = getattr(self, "guardrails_client", None)
+        if client is not None:
             try:
-                g_res = self.guardrails_client.analyze(text, actor=user_id)
-                if getattr(g_res, "action", None) == "redact" and getattr(g_res, "sanitized_prompt", None):
+                g_res = client.check(prompt=text, actor=user_id) if hasattr(client, "check") else client.analyze(text, actor=user_id)
+                action = getattr(g_res, "action", "allow")
+                if action == "redact" and getattr(g_res, "sanitized_prompt", None):
                     text = g_res.sanitized_prompt
-                elif getattr(g_res, "action", None) == "block":
-                    raise ValueError(f"Memory write blocked by guardrails: {getattr(g_res, 'reason', '')}")
+                elif action in ("block", "crisis_intervention"):
+                    raise SecurityPolicyViolationError(
+                        f"Memory write rejected by guardrails policy ({action}): {getattr(g_res, 'reason', 'Blocked by policy')}"
+                    )
             except Exception as ex:
-                if isinstance(ex, ValueError):
+                if isinstance(ex, SecurityPolicyViolationError):
                     raise
         else:
             try:
-                from guardrails import GuardrailsEngine, SafetyCheckRequest
-                g_engine = GuardrailsEngine()
-                g_res = g_engine.evaluate(SafetyCheckRequest(prompt=text, actor=user_id))
+                from guardrails.client import GuardrailsClient
+                client = GuardrailsClient()
+                g_res = client.check(prompt=text, actor=user_id)
                 if g_res.action == "redact" and g_res.sanitized_prompt:
                     text = g_res.sanitized_prompt
-                elif g_res.action == "block":
-                    raise ValueError(f"Memory write blocked by guardrails: {g_res.reason}")
+                elif g_res.action in ("block", "crisis_intervention"):
+                    raise SecurityPolicyViolationError(
+                        f"Memory write rejected by guardrails policy ({g_res.action}): {g_res.reason}"
+                    )
             except ImportError:
                 pass
 
@@ -240,14 +252,33 @@ class MemoryEngine:
             project_id=project_id,
         )
 
+        start_t = time.perf_counter()
         # Stitch 4: Dynamic Synthesis with token budget limit
-        return self.synthesizer.synthesize(
+        result = self.synthesizer.synthesize(
             user_id=user_id,
             session_id=session_id,
             working_turns=working_turns,
             core_facts=core_facts,
             archival_memories=archival_hits,
         )
+
+        # Task 1.2: Telemetry emission for memory retrieval
+        try:
+            from observability.core.tracer import TelemetryCollector
+            duration_ms = (time.perf_counter() - start_t) * 1000.0
+            token_count = getattr(result, "token_count", 0)
+            TelemetryCollector.get_instance().emit(
+                module="memory",
+                operation="memory_recall",
+                duration_ms=duration_ms,
+                status_code=200,
+                token_usage={"total_tokens": token_count, "prompt_tokens": token_count, "completion_tokens": 0},
+                metadata={"user_id": user_id, "facts_count": len(getattr(result, "facts", []))},
+            )
+        except Exception:
+            pass
+
+        return result
 
     def consolidate(self, user_id: str, session_id: str) -> ConsolidationResult:
         """Execute REM Sleep consolidation cycle on a session."""
@@ -302,4 +333,23 @@ class MemoryEngine:
             project_id=project_id,
             facts=facts,
             archival_records=records,
+        )
+
+    def store(
+        self,
+        user_id: str,
+        text: str,
+        session_id: Optional[str] = None,
+        role: TurnRole = TurnRole.USER,
+        project_id: str = "default",
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Convenience alias for remember() supporting the store() interface."""
+        return self.remember(
+            user_id=user_id,
+            text=text,
+            session_id=session_id,
+            role=role,
+            project_id=project_id,
+            metadata=metadata,
         )

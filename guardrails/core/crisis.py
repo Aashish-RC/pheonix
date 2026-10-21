@@ -75,7 +75,7 @@ CRISIS_RESOURCES: Dict[str, Dict[str, str]] = {
 CATEGORY_PATTERNS = {
     "self_harm": [
         r"\b(?:suicide|kill\s+myself|end\s+my\s+life|want\s+to\s+die|hang\s+myself|slit\s+my\s+wrists)\b",
-        r"\b(?:how\s+to\s+commit\s+suicide|painless\s+way\s+to\s+die|overdose\s+on\s+pills\s+to\s+die|overdose)\b",
+        r"\b(?:how\s+to\s+commit\s+suicide|painless\s+way\s+to\s+die|overdose\s+on\s+pills\s+to\s+die)\b",
         r"\b(?:self[-\s]?harm|cut\s+myself|cutting\s+my\s+wrists)\b",
         r"\b(?:end\s+it\s+all|don't\s+want\s+to\s+live|want\s+to\s+commit\s+suicide)\b",
     ],
@@ -86,18 +86,20 @@ CATEGORY_PATTERNS = {
     "domestic_violence": [
         r"\b(?:partner\s+(?:is\s+hitting|beat|abusing|threatened\s+to\s+kill)\s+me)\b",
         r"\b(?:domestic\s+violence|domestic\s+abuse|husband\s+beats\s+me|wife\s+beats\s+me)\b",
-        r"\b(?:afraid\s+my\s+partner\s+will\s+kill\s+me|trapped\s+in\s+abusive\s+relationship)\b",
+        r"\b(?:afraid\s+my\s+partner\s+will\s+kill\s+me|trapped\s+in\s+abusive\s+relationship|abusive\s+relationship)\b",
     ],
     "substance_crisis": [
-        r"\b(?:meth\s+overdose|fentanyl\s+overdose|heroin\s+withdrawal\s+emergency)\b",
+        r"\b(?:overdose|fentanyl|meth\s+overdose|heroin\s+withdrawal\s+emergency)\b",
         r"\b(?:can't\s+stop\s+using\s+drugs|severe\s+alcohol\s+withdrawal|addiction\s+crisis)\b",
     ],
     "disaster_distress": [
         r"\b(?:lost\s+everything\s+in\s+the\s+(?:hurricane|earthquake|wildfire|flood|tornado))\b",
+        r"\b(?:earthquake|tornado|wildfire|hurricane|flood)\s+(?:destroyed|wrecked|devastated)\b",
         r"\b(?:disaster\s+trauma|house\s+burned\s+down\s+nowhere\s+to\s+go)\b",
     ],
     "generic_distress": [
         r"\b(?:can't\s+take\s+this\s+anymore|completely\s+hopeless\s+and\s+alone|having\s+a\s+panic\s+breakdown)\b",
+        r"\b(?:life\s+is\s+collapsing|nobody\s+left\s+in\s+the\s+world)\b",
     ],
 }
 
