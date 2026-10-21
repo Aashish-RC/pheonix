@@ -1,9 +1,10 @@
 import { CooldownTracker } from '../resilience/cooldown.js';
 import { ProviderConfig } from '../types/provider.js';
+import { AutoRouter } from './auto-selector.js';
 
 export interface RouteTarget {
   id: string;
-  provider: string; // 'openai' | 'anthropic' | 'ollama'
+  provider: string; // 'openai' | 'anthropic' | 'ollama' | 'gemini'
   model: string;
   config: ProviderConfig;
   weight?: number;
@@ -19,6 +20,7 @@ export interface ModelRouteConfig {
 export class ModelRouter {
   private routes: Map<string, ModelRouteConfig> = new Map();
   private cooldownTracker: CooldownTracker;
+  public lastResolvedReason: string = '';
 
   constructor(cooldownTracker: CooldownTracker) {
     this.cooldownTracker = cooldownTracker;
@@ -28,8 +30,28 @@ export class ModelRouter {
     this.routes.set(route.alias.toLowerCase(), route);
   }
 
-  public resolveTargets(alias: string, promptPrefixForAffinity?: string): RouteTarget[] {
-    const route = this.routes.get(alias.toLowerCase());
+  public resolveTargets(
+    alias: string,
+    promptPrefixForAffinity?: string,
+    requestObj?: any,
+    manualOverride?: string
+  ): RouteTarget[] {
+    let targetAlias = alias.toLowerCase();
+
+    // 1. Check if auto routing or manual override applies
+    if (manualOverride || targetAlias === 'auto' || targetAlias.startsWith('auto-')) {
+      const autoRouter = AutoRouter.getInstance();
+      const decision = autoRouter.route(
+        requestObj || { model: alias, messages: [{ role: 'user', content: promptPrefixForAffinity || '' }] },
+        manualOverride
+      );
+      targetAlias = decision.targetAlias.toLowerCase();
+      this.lastResolvedReason = decision.oneLineReason;
+    } else {
+      this.lastResolvedReason = '';
+    }
+
+    const route = this.routes.get(targetAlias);
     if (!route) {
       // Default fallback: direct passthrough if no route configured
       return [];

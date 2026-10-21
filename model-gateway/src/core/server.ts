@@ -484,21 +484,28 @@ export function createGatewayApp(options?: CreateGatewayAppOptions): {
 
     // Delegate execution to the unified GatewayEngine
     try {
+      const manualOverride = c.req.header('x-pheonix-model-override') || undefined;
       if (body.stream) {
-        const stream = await engine.streamChatCompletion(body, { context: ctx });
-        return new Response(stream, {
-          headers: {
-            'content-type': 'text/event-stream',
-            'cache-control': 'no-cache',
-            connection: 'keep-alive',
-            'x-request-id': requestId
-          }
-        });
-      } else {
-        const response = await engine.chatCompletion(body, { context: ctx });
-        return c.json(response, 200, {
+        const stream = await engine.streamChatCompletion(body, { context: ctx, manualOverride });
+        const headers: Record<string, string> = {
+          'content-type': 'text/event-stream',
+          'cache-control': 'no-cache',
+          connection: 'keep-alive',
           'x-request-id': requestId
-        });
+        };
+        if (router.lastResolvedReason) {
+          headers['x-pheonix-auto-reason'] = router.lastResolvedReason;
+        }
+        return new Response(stream, { headers });
+      } else {
+        const response = await engine.chatCompletion(body, { context: ctx, manualOverride });
+        const headers: Record<string, string> = {
+          'x-request-id': requestId
+        };
+        if (router.lastResolvedReason) {
+          headers['x-pheonix-auto-reason'] = router.lastResolvedReason;
+        }
+        return c.json(response, 200, headers);
       }
     } catch (err: any) {
       const status = err.statusCode || 500;

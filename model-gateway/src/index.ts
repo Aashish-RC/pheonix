@@ -14,8 +14,17 @@ export * from './telemetry/pricing.js';
 export * from './telemetry/usage.js';
 export * from './resilience/classifier.js';
 export * from './resilience/cooldown.js';
+export * from './routing/capability-matrix.js';
+export * from './routing/auto-selector.js';
+export * from './routing/extra-routes.js';
+import { getExtraRoutes } from './routing/extra-routes.js';
 
 const { app, router, engine } = createGatewayApp();
+
+// Register extra provider routes (OpenRouter, Requesty, Eden AI)
+for (const extraRoute of getExtraRoutes()) {
+  router.registerRoute(extraRoute);
+}
 
 // Feature 5: Register default routes demonstrating virtual tiers (smart/fast/vision/embedding)
 // 1. smart-tier: Primary Claude 3.7 Sonnet -> Fallback GPT-4o -> Escape Route Ollama

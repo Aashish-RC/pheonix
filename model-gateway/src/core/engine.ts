@@ -150,7 +150,7 @@ export class GatewayEngine implements IGatewayEngine {
     }
 
     const systemPrompt = validated.messages.find(m => m.role === 'system')?.content || '';
-    const targets = this.router.resolveTargets(validated.model, systemPrompt);
+    const targets = this.router.resolveTargets(validated.model, systemPrompt, validated, options?.manualOverride);
 
     if (targets.length === 0) {
       const errMsg = `No available target found for model '${validated.model}'`;
@@ -413,7 +413,7 @@ export class GatewayEngine implements IGatewayEngine {
     }
 
     const systemPrompt = validated.messages.find(m => m.role === 'system')?.content || '';
-    const targets = this.router.resolveTargets(validated.model, systemPrompt);
+    const targets = this.router.resolveTargets(validated.model, systemPrompt, validated, options?.manualOverride);
 
     if (targets.length === 0) {
       const errMsg = `No available target found for model '${validated.model}'`;

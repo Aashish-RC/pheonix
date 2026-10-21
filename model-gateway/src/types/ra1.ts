@@ -71,6 +71,7 @@ export type StreamChunkHook = (
 // H1: Gateway interface
 export interface GatewayRequestOptions {
   context?: Partial<RequestContext>;
+  manualOverride?: string;
   permissionHook?: PermissionHook;
   keyLookupHook?: KeyLookupHook;
   auditHook?: AuditHook;
