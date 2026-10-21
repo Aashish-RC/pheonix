@@ -218,3 +218,68 @@ def test_lease_expiry(temp_vault_path):
     assert not lease.is_valid()
     with pytest.raises(SecretExpiredError):
         lease.get_plaintext()
+
+
+import concurrent.futures
+
+
+def test_concurrent_threads_access_leases_without_deadlock(temp_vault_path):
+    """Verifies that 20 concurrent worker threads can lease and read secrets simultaneously without deadlock."""
+    mgr = KeyStoreManager(temp_vault_path)
+    mgr.initialize("concurrency-test-passphrase")
+
+    for i in range(5):
+        mgr.put_secret(f"concurrency_key_{i}", f"secret_value_{i}_token")
+
+    def worker(worker_id: int):
+        target_key = f"concurrency_key_{worker_id % 5}"
+        with mgr.get_lease(target_key, ttl_seconds=10.0) as lease:
+            val = lease.get_plaintext()
+            assert val == f"secret_value_{worker_id % 5}_token"
+            return True
+
+    # Execute 20 concurrent threads
+    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+        futures = [executor.submit(worker, i) for i in range(20)]
+        results = [f.result(timeout=10.0) for f in concurrent.futures.as_completed(futures)]
+
+    assert len(results) == 20
+    assert all(results)
+
+
+def test_zero_plaintext_in_audit_dumps(temp_vault_path):
+    """Verifies zero plaintext secrets appear anywhere in audit dumps or log records."""
+    mgr = KeyStoreManager(temp_vault_path)
+    mgr.initialize("audit-privacy-passphrase")
+
+    secret_val = "super-secret-api-key-999-never-leak-in-audit"
+    mgr.put_secret("audit_target", secret_val, description="Production API Key")
+
+    # Access lease and revoke to generate diverse audit records
+    with mgr.get_lease("audit_target", ttl_seconds=5.0) as lease:
+        _ = lease.get_plaintext()
+
+    audit_entries = mgr.get_audit_log()
+    assert len(audit_entries) >= 3
+
+    for entry in audit_entries:
+        # Assert raw secret value never appears in audit details or string representations
+        assert secret_val not in str(entry.details or "")
+        assert secret_val not in str(entry)
+        assert secret_val not in repr(entry)
+
+
+def test_file_tampering_header_magic_detection(temp_vault_path):
+    """Verifies that tampering with header magic bytes triggers instant corruption rejection."""
+    mgr = KeyStoreManager(temp_vault_path)
+    mgr.initialize("tamper-header-pass")
+    mgr.put_secret("key1", "val1")
+
+    with open(temp_vault_path, "r+b") as f:
+        # Corrupt the magic bytes in the header
+        f.seek(0)
+        f.write(b"CORRUPTED_MAGIC_")
+
+    mgr_tampered = KeyStoreManager(temp_vault_path)
+    with pytest.raises((CorruptedVaultError, InvalidPassphraseError)):
+        mgr_tampered.unlock("tamper-header-pass")

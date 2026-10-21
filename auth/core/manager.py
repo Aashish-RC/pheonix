@@ -61,6 +61,7 @@ class AuthManager:
 
         self.device_registry = DeviceRegistry()
         self._user: Optional[UserRecord] = None
+        self.max_concurrent_sessions: int = 5
         # session_id -> { "session_id", "user_id", "device_id", "issued_at", "expires_at", "is_active" }
         self._sessions: Dict[str, Dict[str, Any]] = {}
 
@@ -105,6 +106,9 @@ class AuthManager:
         if not verify_password(password, self._user.password_hash, self._user.salt):
             raise AuthenticationError("Invalid username or password.")
 
+        if self.device_registry.is_device_blacklisted(device_id):
+            raise AuthenticationError(f"Device '{device_id}' has been blacklisted.")
+
         # Register or update device
         device = self.device_registry.register_or_update(
             device_id=device_id,
@@ -115,6 +119,17 @@ class AuthManager:
 
         if device.is_revoked:
             raise AuthenticationError(f"Device '{device_id}' has been revoked: {device.revocation_reason}")
+
+        # Enforce concurrent session limit (max 5 sessions per user)
+        now = time.time()
+        user_active = [
+            s for s in self._sessions.values()
+            if s["user_id"] == self._user.user_id and s.get("is_active", False) and s.get("expires_at", 0) > now
+        ]
+        if len(user_active) >= self.max_concurrent_sessions:
+            user_active.sort(key=lambda s: s.get("issued_at", 0))
+            oldest = user_active[0]
+            oldest["is_active"] = False
 
         # Issue signed cryptographic session token
         session_id = f"sess_{uuid.uuid4().hex[:16]}"
@@ -173,6 +188,9 @@ class AuthManager:
             raise SessionInvalidError(f"Session verification failed: {err}")
 
         device_id = payload["did"]
+        if self.device_registry.is_device_blacklisted(device_id):
+            raise SessionInvalidError(f"Origin device '{device_id}' is blacklisted.")
+
         if not self.device_registry.is_device_active(device_id):
             raise SessionInvalidError(f"Origin device '{device_id}' is revoked or not trusted.")
 
@@ -242,3 +260,14 @@ class AuthManager:
             return self.revoke_session(payload["sid"])
         except Exception:
             return False
+
+    def blacklist_device(self, device_id: str, reason: str = "Device blacklisted by admin") -> bool:
+        """Blacklist a device permanently and invalidate all its active sessions."""
+        self.device_registry.blacklist_device(device_id, reason)
+        for sess in self._sessions.values():
+            if sess["device_id"] == device_id:
+                sess["is_active"] = False
+        return True
+
+    def is_device_blacklisted(self, device_id: str) -> bool:
+        return self.device_registry.is_device_blacklisted(device_id)

@@ -26,16 +26,22 @@ class RulesEngine:
 
     def __init__(self, store_path: Optional[Path] = None):
         self._rules: Dict[str, RuleDefinition] = {}
+        self._rule_history: Dict[str, Dict[int, RuleDefinition]] = {}
         self.dispatcher = RuleDispatcher()
         self.store = RulesStore(store_path) if store_path else None
 
         if self.store and self.store.exists():
             for r in self.store.load():
                 self._rules[r.rule_id] = r
+                self._rule_history[r.rule_id] = {r.version: r.model_copy(deep=True)}
 
     def add_rule(self, rule: RuleDefinition) -> RuleDefinition:
         """Register a new rule and broadcast CREATED event to all connected apps."""
         self._rules[rule.rule_id] = rule
+        if rule.rule_id not in self._rule_history:
+            self._rule_history[rule.rule_id] = {}
+        self._rule_history[rule.rule_id][rule.version] = rule.model_copy(deep=True)
+
         if self.store:
             self.store.save(list(self._rules.values()))
 
@@ -50,12 +56,39 @@ class RulesEngine:
         rule.updated_at = time.time()
 
         self._rules[rule.rule_id] = rule
+        if rule.rule_id not in self._rule_history:
+            self._rule_history[rule.rule_id] = {}
+        self._rule_history[rule.rule_id][rule.version] = rule.model_copy(deep=True)
+
         if self.store:
             self.store.save(list(self._rules.values()))
 
         event = RuleChangeEvent(event_type="UPDATED", rule=rule)
         self.dispatcher.broadcast(event)
         return rule
+
+    def rollback_rule(self, rule_id: str, target_version: int) -> Optional[RuleDefinition]:
+        """Rollback rule to a specific historical version and broadcast to connected apps."""
+        history = self._rule_history.get(rule_id, {})
+        target_rule = history.get(target_version)
+        if not target_rule:
+            return None
+
+        current = self._rules.get(rule_id)
+        new_version = (current.version + 1) if current else target_version
+        restored = target_rule.model_copy(deep=True)
+        restored.version = new_version
+        restored.updated_at = time.time()
+
+        self._rules[rule_id] = restored
+        self._rule_history[rule_id][new_version] = restored.model_copy(deep=True)
+
+        if self.store:
+            self.store.save(list(self._rules.values()))
+
+        event = RuleChangeEvent(event_type="UPDATED", rule=restored)
+        self.dispatcher.broadcast(event)
+        return restored
 
     def toggle_rule(self, rule_id: str, enabled: bool) -> Optional[RuleDefinition]:
         """Enable or disable a rule and broadcast update."""

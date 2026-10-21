@@ -33,6 +33,7 @@ class ProviderActivationManager:
         self.vault_manager = vault_manager
         # provider_id -> ActivatedProvider
         self._activated: Dict[str, ActivatedProvider] = {}
+        self._consecutive_failures: Dict[str, int] = {}
 
     def activate_provider(
         self,
@@ -127,13 +128,76 @@ class ProviderActivationManager:
         record.last_latency_ms = ping_res.latency_ms
 
         if ping_res.success:
+            self._consecutive_failures[provider_id] = 0
             record.status = ProviderStatus.ACTIVE
             record.revocation_reason = None
         else:
-            record.status = ProviderStatus.INACTIVE
-            record.revocation_reason = ping_res.error_message
+            failures = self._consecutive_failures.get(provider_id, 0) + 1
+            self._consecutive_failures[provider_id] = failures
+            if failures >= 3:
+                record.status = ProviderStatus.QUARANTINED
+                record.revocation_reason = (
+                    f"Provider automatically quarantined after {failures} consecutive failed pings: {ping_res.error_message}"
+                )
+            else:
+                record.status = ProviderStatus.INACTIVE
+                record.revocation_reason = ping_res.error_message
 
         return ping_res
+
+    def refresh_provider_token(
+        self,
+        provider_id: str,
+        refresh_fn: Callable[[], str],
+    ) -> Tuple[bool, Optional[str]]:
+        """Handles automated or manual OAuth/token refresh for a provider."""
+        record = self._activated.get(provider_id)
+        if not record:
+            return False, f"Provider '{provider_id}' is not activated."
+
+        try:
+            new_token = refresh_fn()
+            if not new_token:
+                raise ValueError("Token refresh returned empty token")
+
+            if self.vault_manager and record.key_id:
+                self.vault_manager.put_secret(
+                    key_id=record.key_id,
+                    secret=new_token,
+                    provider=provider_id,
+                    description=f"Refreshed credential for {record.name}",
+                )
+
+            self._consecutive_failures[provider_id] = 0
+            record.status = ProviderStatus.ACTIVE
+            record.revocation_reason = None
+            return True, None
+        except Exception as e:
+            record.status = ProviderStatus.INACTIVE
+            record.revocation_reason = f"Token refresh failure: {e}"
+            return False, str(e)
+
+    def reactivate_provider(
+        self,
+        provider_id: str,
+        secret: Optional[str] = None,
+        probe_fn: Optional[Callable[[ProviderDescriptor, str], PingResult]] = None,
+    ) -> Tuple[bool, ActivatedProvider, PingResult]:
+        """Recovers and reactivates a quarantined or inactive provider with a refreshed or new key."""
+        self._consecutive_failures[provider_id] = 0
+        desc = ProviderCatalog.get_descriptor(provider_id)
+
+        # Retrieve secret from vault if none provided
+        sec = secret or ""
+        if not sec and self.vault_manager:
+            try:
+                lease = self.vault_manager.get_lease(f"prov_{provider_id}")
+                with lease:
+                    sec = lease.get_plaintext()
+            except Exception:
+                pass
+
+        return self.activate_provider(provider_id=provider_id, secret=sec, probe_fn=probe_fn)
 
     def revoke_provider(self, provider_id: str, reason: str = "User revoked provider") -> bool:
         """

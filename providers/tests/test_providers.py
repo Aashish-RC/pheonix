@@ -175,3 +175,89 @@ def test_local_provider_activation():
     assert success is True
     assert record.status == ProviderStatus.ACTIVE
     assert mgr.is_provider_active("ollama") is True
+
+
+def test_automatic_quarantine_after_3_failed_pings(temp_vault):
+    """Verifies that 3 consecutive failed health pings automatically place provider in QUARANTINED state."""
+    mgr = ProviderActivationManager(vault_manager=temp_vault)
+    mgr.activate_provider(
+        provider_id="openai",
+        secret="sk-test-quarantine",
+        probe_fn=mock_successful_probe,
+    )
+    assert mgr.get_provider_status("openai") == ProviderStatus.ACTIVE
+
+    # Failure 1
+    res1 = mgr.recheck_provider("openai", probe_fn=mock_failing_probe)
+    assert not res1.success
+    assert mgr.get_provider_status("openai") == ProviderStatus.INACTIVE
+
+    # Failure 2
+    res2 = mgr.recheck_provider("openai", probe_fn=mock_failing_probe)
+    assert not res2.success
+    assert mgr.get_provider_status("openai") == ProviderStatus.INACTIVE
+
+    # Failure 3 -> triggers QUARANTINE
+    res3 = mgr.recheck_provider("openai", probe_fn=mock_failing_probe)
+    assert not res3.success
+    assert mgr.get_provider_status("openai") == ProviderStatus.QUARANTINED
+    assert mgr.is_provider_active("openai") is False
+
+    rec = mgr._activated["openai"]
+    assert "quarantined" in rec.revocation_reason.lower()
+
+
+def test_token_refresh_failure_and_success_handling(temp_vault):
+    """Verifies handling of token refresh failures and recovery upon successful token rotation."""
+    mgr = ProviderActivationManager(vault_manager=temp_vault)
+    mgr.activate_provider(
+        provider_id="anthropic",
+        secret="sk-ant-refresh-initial",
+        probe_fn=mock_successful_probe,
+    )
+    assert mgr.is_provider_active("anthropic") is True
+
+    # 1. Token refresh failure (e.g. invalid refresh grant)
+    def failing_refresh():
+        raise RuntimeError("OAuth refresh token expired or revoked by identity provider")
+
+    success, err = mgr.refresh_provider_token("anthropic", failing_refresh)
+    assert success is False
+    assert "OAuth refresh token expired" in err
+    assert mgr.get_provider_status("anthropic") == ProviderStatus.INACTIVE
+
+    # 2. Token refresh success
+    def successful_refresh():
+        return "sk-ant-refreshed-new-token-12345"
+
+    ok, no_err = mgr.refresh_provider_token("anthropic", successful_refresh)
+    assert ok is True
+    assert no_err is None
+    assert mgr.get_provider_status("anthropic") == ProviderStatus.ACTIVE
+    with temp_vault.get_lease("prov_anthropic") as lease:
+        assert lease.get_plaintext() == "sk-ant-refreshed-new-token-12345"
+
+
+def test_key_reactivation_from_quarantine(temp_vault):
+    """Verifies that a quarantined provider can be reactivated with a new or refreshed key."""
+    mgr = ProviderActivationManager(vault_manager=temp_vault)
+    mgr.activate_provider("gemini", "initial-key", probe_fn=mock_successful_probe)
+
+    # Force 3 failures to quarantine
+    for _ in range(3):
+        mgr.recheck_provider("gemini", probe_fn=mock_failing_probe)
+
+    assert mgr.get_provider_status("gemini") == ProviderStatus.QUARANTINED
+
+    # Reactivate with fresh valid key
+    success, record, ping = mgr.reactivate_provider(
+        provider_id="gemini",
+        secret="new-fresh-gemini-key-999",
+        probe_fn=mock_successful_probe,
+    )
+
+    assert success is True
+    assert record.status == ProviderStatus.ACTIVE
+    assert mgr.get_provider_status("gemini") == ProviderStatus.ACTIVE
+    assert mgr.is_provider_active("gemini") is True
+    assert mgr._consecutive_failures.get("gemini") == 0

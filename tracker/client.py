@@ -34,6 +34,14 @@ class TrackerClient:
         """Lists all upcoming provider subscription renewals ordered by urgency."""
         return RenewalEngine.list_renewals(self.plans.list_plans(), reference_date=reference_date)
 
+    def aggregate_licenses(self):
+        """Aggregates multi-account key licenses, quotas, and spends per provider."""
+        return self.key_monitor.aggregate_licenses()
+
+    def purge_expired_keys(self, reference_date: Optional[date] = None) -> List[str]:
+        """Purges expired or invalid keys from tracking."""
+        return self.key_monitor.purge_expired_keys(reference_date=reference_date)
+
     def render_dashboard(self, reference_date: Optional[date] = None) -> str:
         """Renders formatted ASCII dashboard showing active keys and upcoming renewals."""
         keys = self.list_all_keys()

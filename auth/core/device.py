@@ -24,6 +24,19 @@ class DeviceRegistry:
 
     def __init__(self):
         self._devices: Dict[str, DeviceInfo] = {}
+        self._blacklisted: set[str] = set()
+
+    def blacklist_device(self, device_id: str, reason: str = "Device blacklisted") -> bool:
+        self._blacklisted.add(device_id)
+        if device_id in self._devices:
+            dev = self._devices[device_id]
+            dev.is_revoked = True
+            dev.is_trusted = False
+            dev.revocation_reason = reason
+        return True
+
+    def is_device_blacklisted(self, device_id: str) -> bool:
+        return device_id in self._blacklisted
 
     def register_or_update(
         self,
@@ -61,6 +74,8 @@ class DeviceRegistry:
         return self._devices.get(device_id)
 
     def is_device_active(self, device_id: str) -> bool:
+        if self.is_device_blacklisted(device_id):
+            return False
         dev = self._devices.get(device_id)
         if not dev:
             return False

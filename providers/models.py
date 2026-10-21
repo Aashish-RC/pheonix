@@ -12,6 +12,7 @@ class ProviderStatus(str, Enum):
     ACTIVE = "active"
     INACTIVE = "inactive"
     DEGRADED = "degraded"
+    QUARANTINED = "quarantined"
     REVOKED = "revoked"
     UNTESTED = "untested"
 

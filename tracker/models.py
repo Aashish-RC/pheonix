@@ -3,7 +3,7 @@ Pheonix Subscription & Key Tracker Data Models
 Defines schema for provider subscription plans, renewals, active key quotas, and alerts.
 """
 
-from typing import Literal
+from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 BillingCycle = Literal["monthly", "annual", "pay_as_you_go"]
@@ -31,6 +31,8 @@ class KeyQuotaStatus(BaseModel):
     monthly_quota_usd: float = Field(default=100.0, ge=0.0)
     quota_used_percent: float = Field(default=0.0, ge=0.0)
     alert_level: AlertLevel = "normal"
+    expires_at: Optional[str] = None  # YYYY-MM-DD
+    is_expired: bool = False
 
 
 class ProviderRenewal(BaseModel):

@@ -194,3 +194,116 @@ def test_domain_scoped_rule_propagation():
 
     gateway_client.close()
     agent_client.close()
+
+
+def test_dynamic_rule_propagation_to_running_agents():
+    """Verifies that dynamic rule changes immediately propagate to running agent instances."""
+    engine = RulesEngine()
+    agent1 = RulesClient("agent_researcher", engine, scope=RuleScope.AGENT)
+    agent2 = RulesClient("agent_coder", engine, scope=RuleScope.AGENT)
+
+    ctx = {"operation": "delete_database"}
+    assert agent1.evaluate(ctx).allowed is True
+    assert agent2.evaluate(ctx).allowed is True
+
+    # Publish rule banning operation
+    ban_rule = RuleDefinition(
+        rule_id="ban_db_drop",
+        name="Ban DB Drop",
+        scope=RuleScope.AGENT,
+        conditions=[RuleCondition(field="operation", operator="==", value="delete_database")],
+        action=RuleAction.BLOCK,
+        message="Destructive database drop blocked",
+    )
+    engine.add_rule(ban_rule)
+
+    # Immediately reflected in both running agents
+    res1 = agent1.evaluate(ctx)
+    res2 = agent2.evaluate(ctx)
+    assert not res1.allowed
+    assert not res2.allowed
+    assert "Destructive database drop blocked" in res1.reason
+
+    agent1.close()
+    agent2.close()
+
+
+def test_conflicting_rule_resolution():
+    """Verifies that conflicting rules are deterministically resolved by strict priority order."""
+    engine = RulesEngine()
+
+    # Rule A: Allow with lower priority (higher numeric value = 50)
+    rule_allow = RuleDefinition(
+        rule_id="rule_conflict_allow",
+        name="Allow Low Priority",
+        priority=50,
+        scope=RuleScope.GLOBAL,
+        conditions=[RuleCondition(field="tier", operator="==", value="enterprise")],
+        action=RuleAction.ALLOW,
+        message="Permitted by tier rule",
+    )
+
+    # Rule B: Block with higher priority (lower numeric value = 10)
+    rule_block = RuleDefinition(
+        rule_id="rule_conflict_block",
+        name="Block High Priority",
+        priority=10,
+        scope=RuleScope.GLOBAL,
+        conditions=[RuleCondition(field="tier", operator="==", value="enterprise")],
+        action=RuleAction.BLOCK,
+        message="Blocked by high-priority emergency rule",
+    )
+
+    engine.add_rule(rule_allow)
+    engine.add_rule(rule_block)
+
+    ctx = {"tier": "enterprise"}
+    res = engine.evaluate(RuleScope.GLOBAL, ctx)
+
+    # Rule B wins because priority 10 < 50
+    assert not res.allowed
+    assert res.action == RuleAction.BLOCK
+    assert "Blocked by high-priority emergency rule" in res.reason
+
+
+def test_rule_version_rollback():
+    """Verifies rule version tracking and rollback to a previous version."""
+    engine = RulesEngine()
+    client = RulesClient("app_worker", engine, scope=RuleScope.GLOBAL)
+
+    # Version 1: Action = BLOCK
+    rule_v1 = RuleDefinition(
+        rule_id="rollback_test_rule",
+        name="Rollback Target Rule",
+        scope=RuleScope.GLOBAL,
+        conditions=[RuleCondition(field="action", operator="==", value="external_transfer")],
+        action=RuleAction.BLOCK,
+        message="Transfers blocked in v1",
+        version=1,
+    )
+    engine.add_rule(rule_v1)
+
+    ctx = {"action": "external_transfer"}
+    assert not client.evaluate(ctx).allowed
+
+    # Version 2: Update rule to ALLOW
+    rule_v2 = rule_v1.model_copy()
+    rule_v2.action = RuleAction.ALLOW
+    rule_v2.message = "Transfers allowed in v2"
+    engine.update_rule(rule_v2)
+
+    assert client.evaluate(ctx).allowed is True
+    assert "Transfers allowed in v2" in client.evaluate(ctx).reason
+
+    # Rollback to Version 1
+    rolled_back = engine.rollback_rule("rollback_test_rule", target_version=1)
+    assert rolled_back is not None
+    assert rolled_back.action == RuleAction.BLOCK
+
+    # Client immediately sees rolled-back BLOCK policy
+    res = client.evaluate(ctx)
+    assert not res.allowed
+    assert res.action == RuleAction.BLOCK
+    assert "Transfers blocked in v1" in res.reason
+
+    client.close()

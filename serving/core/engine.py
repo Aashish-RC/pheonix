@@ -91,6 +91,24 @@ class ModelServingEngine:
         with self.resource_limiter.acquire_slot(required_ram_gb=min_ram, required_vram_gb=min_vram):
             response = selected_runtime.chat_completion(request)
 
+        # Task 1.2: Telemetry emission for serving inference
+        try:
+            from observability.core.tracer import TelemetryCollector
+            TelemetryCollector.get_instance().emit(
+                module="serving",
+                operation="llm_inference",
+                duration_ms=response.latency_ms,
+                status_code=200,
+                token_usage={
+                    "prompt_tokens": response.tokens_prompt,
+                    "completion_tokens": response.tokens_completion,
+                    "total_tokens": response.tokens_prompt + response.tokens_completion,
+                },
+                metadata={"model": response.model, "runtime": response.runtime, "offline": response.offline},
+            )
+        except Exception:
+            pass
+
         return response
 
     def stream_generate(self, model: str, prompt: str, runtime_name: Optional[str] = None):

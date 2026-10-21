@@ -225,3 +225,101 @@ def test_auth_with_vault_backend(tmp_path):
     with pytest.raises(SessionInvalidError):
         auth_mgr.validate_session(tampered)
 
+
+def test_token_expiry_boundaries(auth_manager):
+    """Verifies token expiration boundary conditions."""
+    session = auth_manager.authenticate(
+        username="alice",
+        password="SuperSecretPassword123!",
+        device_id="dev_ephemeral",
+        ttl_seconds=0.15,
+    )
+
+    # Valid immediately
+    payload = auth_manager.validate_session(session.token_string)
+    assert payload["sid"] == session.session_id
+
+    # Sleep past expiration
+    time.sleep(0.20)
+    with pytest.raises(SessionInvalidError) as exc_info:
+        auth_manager.validate_session(session.token_string)
+    assert "expired" in str(exc_info.value).lower()
+
+
+def test_device_blacklisting_enforcement(auth_manager):
+    """Verifies device blacklisting prevents both session validation and future logins."""
+    session = auth_manager.authenticate(
+        username="alice",
+        password="SuperSecretPassword123!",
+        device_id="dev_bad_actor",
+    )
+    assert auth_manager.validate_session(session.token_string) is not None
+
+    # Blacklist device
+    auth_manager.blacklist_device("dev_bad_actor", reason="Security compromised hardware")
+
+    # Active session invalidated
+    with pytest.raises(SessionInvalidError) as sess_err:
+        auth_manager.validate_session(session.token_string)
+    assert "blacklisted" in str(sess_err.value).lower()
+
+    # New login rejected
+    with pytest.raises(AuthenticationError) as auth_err:
+        auth_manager.authenticate(
+            username="alice",
+            password="SuperSecretPassword123!",
+            device_id="dev_bad_actor",
+        )
+    assert "blacklisted" in str(auth_err.value).lower()
+
+
+def test_concurrent_session_enforcement_max_5(auth_manager):
+    """Verifies strict max 5 concurrent sessions per user with oldest session eviction."""
+    sessions = []
+    for i in range(5):
+        s = auth_manager.authenticate(
+            username="alice",
+            password="SuperSecretPassword123!",
+            device_id=f"dev_slot_{i}",
+        )
+        sessions.append(s)
+
+    # All 5 slots are active
+    active = auth_manager.list_active_sessions()
+    assert len(active) == 5
+
+    # Authenticate 6th session
+    s6 = auth_manager.authenticate(
+        username="alice",
+        password="SuperSecretPassword123!",
+        device_id="dev_slot_5",
+    )
+
+    # Still strictly capped at 5 active sessions
+    active_now = auth_manager.list_active_sessions()
+    assert len(active_now) == 5
+
+    # 1st session was evicted
+    with pytest.raises(SessionInvalidError):
+        auth_manager.validate_session(sessions[0].token_string)
+
+    # 6th session is valid
+    assert auth_manager.validate_session(s6.token_string) is not None
+
+
+def test_replay_attack_rejection(auth_manager):
+    """Verifies that an invalidated or signed-out session token cannot be replayed."""
+    session = auth_manager.authenticate(
+        username="alice",
+        password="SuperSecretPassword123!",
+        device_id="dev_replay_test",
+    )
+    assert auth_manager.validate_session(session.token_string) is not None
+
+    # Sign out token
+    auth_manager.sign_out(session.token_string)
+
+    # Replay attempt fails immediately
+    with pytest.raises(SessionInvalidError):
+        auth_manager.validate_session(session.token_string)
+

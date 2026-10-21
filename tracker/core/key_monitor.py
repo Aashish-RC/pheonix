@@ -3,7 +3,8 @@ Pheonix Key Status & Quota Monitor
 Tracks active provider keys, monitors spend against monthly quotas, and triggers alerts.
 """
 
-from typing import Dict, List, Optional
+from datetime import date
+from typing import Dict, List, Optional, Any
 from ..models import KeyQuotaStatus, AlertLevel, SubscriptionPlan
 from .plans import PlanRegistry
 
@@ -32,10 +33,12 @@ class KeyMonitor:
         key_id: str,
         provider: str,
         is_active: bool = True,
-        current_spend: float = 0.0
+        current_spend: float = 0.0,
+        monthly_quota_usd: Optional[float] = None,
+        expires_at: Optional[str] = None
     ) -> KeyQuotaStatus:
         plan = self.plans.get_plan(provider)
-        quota = plan.monthly_quota_usd if plan else 100.0
+        quota = monthly_quota_usd if monthly_quota_usd is not None else (plan.monthly_quota_usd if plan else 100.0)
         used_percent = round((current_spend / quota) * 100.0, 1) if quota > 0 else 0.0
 
         alert: AlertLevel = "normal"
@@ -46,6 +49,16 @@ class KeyMonitor:
         elif used_percent >= 70.0:
             alert = "warning"
 
+        is_expired = False
+        if expires_at:
+            try:
+                exp_date = date.fromisoformat(expires_at)
+                if exp_date < date.today():
+                    is_expired = True
+                    is_active = False
+            except Exception:
+                pass
+
         status = KeyQuotaStatus(
             key_id=key_id,
             provider=provider,
@@ -53,10 +66,79 @@ class KeyMonitor:
             current_spend_usd=current_spend,
             monthly_quota_usd=quota,
             quota_used_percent=used_percent,
-            alert_level=alert
+            alert_level=alert,
+            expires_at=expires_at,
+            is_expired=is_expired
         )
         self._key_records[key_id] = status
         return status
+
+    def purge_expired_keys(self, reference_date: Optional[date] = None) -> List[str]:
+        """
+        Purges expired keys or explicitly inactive keys with past expiry dates.
+        Returns list of purged key IDs.
+        """
+        ref = reference_date or date.today()
+        purged: List[str] = []
+
+        for key_id, record in list(self._key_records.items()):
+            should_purge = False
+            if record.is_expired:
+                should_purge = True
+            elif record.expires_at:
+                try:
+                    exp_date = date.fromisoformat(record.expires_at)
+                    if exp_date < ref:
+                        should_purge = True
+                except Exception:
+                    pass
+
+            if should_purge:
+                del self._key_records[key_id]
+                purged.append(key_id)
+
+        return purged
+
+    def aggregate_licenses(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Aggregates multi-account licenses, spend, and quotas grouped by provider.
+        """
+        aggregated: Dict[str, Dict[str, Any]] = {}
+        for record in self._key_records.values():
+            prov = record.provider.lower()
+            if prov not in aggregated:
+                aggregated[prov] = {
+                    "provider": prov,
+                    "total_keys": 0,
+                    "active_keys": 0,
+                    "total_spend_usd": 0.0,
+                    "total_quota_usd": 0.0,
+                    "quota_used_percent": 0.0,
+                    "alert_level": "normal"
+                }
+
+            agg = aggregated[prov]
+            agg["total_keys"] += 1
+            if record.is_active:
+                agg["active_keys"] += 1
+            agg["total_spend_usd"] = round(agg["total_spend_usd"] + record.current_spend_usd, 2)
+            agg["total_quota_usd"] = round(agg["total_quota_usd"] + record.monthly_quota_usd, 2)
+
+        for prov, agg in aggregated.items():
+            t_quota = agg["total_quota_usd"]
+            t_spend = agg["total_spend_usd"]
+            pct = round((t_spend / t_quota) * 100.0, 1) if t_quota > 0 else 0.0
+            agg["quota_used_percent"] = pct
+            if pct >= 100.0:
+                agg["alert_level"] = "exhausted"
+            elif pct >= 85.0:
+                agg["alert_level"] = "critical"
+            elif pct >= 70.0:
+                agg["alert_level"] = "warning"
+            else:
+                agg["alert_level"] = "normal"
+
+        return aggregated
 
     def get_key_status(self, key_id: str) -> Optional[KeyQuotaStatus]:
         return self._key_records.get(key_id)

@@ -6,6 +6,7 @@ Coordinates secret lifecycle, access leasing, rotation, and revocation.
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 import time
+import threading
 
 from ..models import SecretMetadata, AuditEntry
 from .memory_guard import SecretLease
@@ -33,6 +34,7 @@ class KeyStoreManager:
         self.store = VaultStore(self.vault_path)
         self._unlocked_passphrase: Optional[str] = None
         self._cached_data: Optional[Dict[str, Any]] = None
+        self._lock = threading.RLock()
 
     def is_initialized(self) -> bool:
         return self.store.exists()
@@ -76,15 +78,16 @@ class KeyStoreManager:
             raise PermissionError("Vault is locked. Call unlock(passphrase) first.")
 
     def _persist(self, action: str, key_id: Optional[str] = None, details: Optional[str] = None):
-        audit_entry = {
-            "timestamp": time.time(),
-            "action": action,
-            "key_id": key_id,
-            "success": True,
-            "details": details,
-        }
-        self._cached_data["audit"].append(audit_entry)
-        self.store.save_vault(self._cached_data, self._unlocked_passphrase)
+        with self._lock:
+            audit_entry = {
+                "timestamp": time.time(),
+                "action": action,
+                "key_id": key_id,
+                "success": True,
+                "details": details,
+            }
+            self._cached_data["audit"].append(audit_entry)
+            self.store.save_vault(self._cached_data, self._unlocked_passphrase)
 
     def put_secret(
         self,
@@ -95,48 +98,50 @@ class KeyStoreManager:
         tags: Optional[List[str]] = None,
     ):
         """Store or update a secret in the encrypted vault."""
-        self._ensure_unlocked()
-        now = time.time()
-        existing = self._cached_data["secrets"].get(key_id)
+        with self._lock:
+            self._ensure_unlocked()
+            now = time.time()
+            existing = self._cached_data["secrets"].get(key_id)
 
-        meta = SecretMetadata(
-            key_id=key_id,
-            provider=provider,
-            description=description,
-            tags=tags or [],
-            created_at=existing["metadata"]["created_at"] if existing else now,
-            updated_at=now,
-            revoked=False,
-            revoked_at=None,
-            revocation_reason=None,
-        )
+            meta = SecretMetadata(
+                key_id=key_id,
+                provider=provider,
+                description=description,
+                tags=tags or [],
+                created_at=existing["metadata"]["created_at"] if existing else now,
+                updated_at=now,
+                revoked=False,
+                revoked_at=None,
+                revocation_reason=None,
+            )
 
-        self._cached_data["secrets"][key_id] = {
-            "metadata": meta.model_dump(),
-            "value": secret,
-        }
-        self._persist("PUT", key_id=key_id, details=f"Provider: {provider}")
+            self._cached_data["secrets"][key_id] = {
+                "metadata": meta.model_dump(),
+                "value": secret,
+            }
+            self._persist("PUT", key_id=key_id, details=f"Provider: {provider}")
 
     def get_lease(self, key_id: str, ttl_seconds: float = 60.0) -> SecretLease:
         """
         Obtain an ephemeral in-memory lease for a secret.
         The lease guarantees memory zeroization on disposal.
         """
-        self._ensure_unlocked()
-        secret_entry = self._cached_data["secrets"].get(key_id)
-        if not secret_entry:
-            raise SecretNotFoundError(f"Key ID '{key_id}' not found in vault.")
+        with self._lock:
+            self._ensure_unlocked()
+            secret_entry = self._cached_data["secrets"].get(key_id)
+            if not secret_entry:
+                raise SecretNotFoundError(f"Key ID '{key_id}' not found in vault.")
 
-        meta = secret_entry["metadata"]
-        if meta.get("revoked", False):
-            raise SecretRevokedError(
-                f"Key ID '{key_id}' was revoked at {meta.get('revoked_at')}: {meta.get('revocation_reason')}"
-            )
+            meta = secret_entry["metadata"]
+            if meta.get("revoked", False):
+                raise SecretRevokedError(
+                    f"Key ID '{key_id}' was revoked at {meta.get('revoked_at')}: {meta.get('revocation_reason')}"
+                )
 
-        secret_str = secret_entry["value"]
-        lease = SecretLease(key_id, secret_str.encode("utf-8"), ttl_seconds=ttl_seconds)
-        self._persist("GET", key_id=key_id, details=f"Lease granted for {ttl_seconds}s")
-        return lease
+            secret_str = secret_entry["value"]
+            lease = SecretLease(key_id, secret_str.encode("utf-8"), ttl_seconds=ttl_seconds)
+            self._persist("GET", key_id=key_id, details=f"Lease granted for {ttl_seconds}s")
+            return lease
 
     def has_secret(self, key_id: str) -> bool:
         """Check if an active, non-revoked secret exists."""

@@ -161,3 +161,121 @@ class TestTrackerVerificationGate:
         assert "Upcoming Subscription Renewals" in dashboard
         assert "openai" in dashboard
         assert "anthropic" in dashboard
+
+
+class TestTrackerRenewalAndExpiryHardening:
+    """Task 4.6: Tracker Renewal & Expiry Tests."""
+
+    def test_expiry_countdown_triggers_and_thresholds(self):
+        """Verify countdown thresholds trigger due_soon and calculate exact remaining days."""
+        plan = SubscriptionPlan(
+            plan_id="plan-aws",
+            provider="aws-bedrock",
+            name="Bedrock Reserved",
+            renewal_day_of_month=28
+        )
+
+        # 7 days remaining -> active
+        r7 = RenewalEngine.calculate_renewal(plan, reference_date=date(2026, 10, 21))
+        assert r7.days_remaining == 7
+        assert r7.status == "active"
+
+        # 3 days remaining -> due_soon boundary
+        r3 = RenewalEngine.calculate_renewal(plan, reference_date=date(2026, 10, 25))
+        assert r3.days_remaining == 3
+        assert r3.status == "due_soon"
+
+        # 1 day remaining -> due_soon
+        r1 = RenewalEngine.calculate_renewal(plan, reference_date=date(2026, 10, 27))
+        assert r1.days_remaining == 1
+        assert r1.status == "due_soon"
+
+    def test_leap_year_february_renewal_countdown(self):
+        """Verify leap year handling (Feb 29 vs Feb 28 clamping)."""
+        plan = SubscriptionPlan(
+            plan_id="plan-leap",
+            provider="cohere",
+            name="Cohere Command Tier",
+            renewal_day_of_month=31  # Provider renews on last day of month
+        )
+
+        # Leap year 2028: February has 29 days
+        r_leap = RenewalEngine.calculate_renewal(plan, reference_date=date(2028, 2, 10))
+        assert r_leap.next_renewal_date == "2028-02-29"
+        assert r_leap.days_remaining == 19
+
+        # Non-leap year 2027: February has 28 days
+        r_non_leap = RenewalEngine.calculate_renewal(plan, reference_date=date(2027, 2, 10))
+        assert r_non_leap.next_renewal_date == "2027-02-28"
+        assert r_non_leap.days_remaining == 18
+
+    def test_multi_account_license_aggregation(self):
+        """Verify multi-account licenses aggregated across providers with correct spend and quotas."""
+        registry = PlanRegistry()
+        monitor = KeyMonitor(plan_registry=registry)
+
+        # Clear mock keys for clean isolation
+        monitor._key_records.clear()
+
+        # Add 3 OpenAI keys with different spends and custom quotas
+        monitor.register_key("key-oai-dept-a", "openai", is_active=True, current_spend=200.0, monthly_quota_usd=500.0)
+        monitor.register_key("key-oai-dept-b", "openai", is_active=True, current_spend=250.0, monthly_quota_usd=500.0)
+        monitor.register_key("key-oai-dept-c", "openai", is_active=False, current_spend=0.0, monthly_quota_usd=100.0)
+
+        # Add 2 Anthropic keys
+        monitor.register_key("key-claude-prod", "anthropic", is_active=True, current_spend=350.0, monthly_quota_usd=400.0)
+        monitor.register_key("key-claude-dev", "anthropic", is_active=True, current_spend=40.0, monthly_quota_usd=100.0)
+
+        aggregated = monitor.aggregate_licenses()
+
+        assert "openai" in aggregated
+        assert "anthropic" in aggregated
+
+        oai_agg = aggregated["openai"]
+        assert oai_agg["total_keys"] == 3
+        assert oai_agg["active_keys"] == 2
+        assert oai_agg["total_spend_usd"] == 450.0
+        assert oai_agg["total_quota_usd"] == 1100.0
+        assert oai_agg["quota_used_percent"] == round((450.0 / 1100.0) * 100.0, 1)  # ~40.9%
+        assert oai_agg["alert_level"] == "normal"
+
+        claude_agg = aggregated["anthropic"]
+        assert claude_agg["total_keys"] == 2
+        assert claude_agg["active_keys"] == 2
+        assert claude_agg["total_spend_usd"] == 390.0
+        assert claude_agg["total_quota_usd"] == 500.0
+        assert claude_agg["quota_used_percent"] == 78.0  # 390/500 = 78% -> warning
+        assert claude_agg["alert_level"] == "warning"
+
+    def test_expired_key_purge(self):
+        """Verify purging expired keys removes outdated records while active keys remain."""
+        monitor = KeyMonitor()
+        monitor._key_records.clear()
+
+        ref_date = date(2026, 10, 22)
+
+        # 1. Valid active key (expires in 2027)
+        monitor.register_key("key-live", "openai", is_active=True, expires_at="2027-01-01")
+
+        # 2. Key expired yesterday
+        monitor.register_key("key-expired-1", "openai", is_active=True, expires_at="2026-10-21")
+
+        # 3. Key expired last month
+        monitor.register_key("key-expired-2", "anthropic", is_active=False, expires_at="2026-09-15")
+
+        # 4. Key without expiry
+        monitor.register_key("key-perpetual", "gemini", is_active=True, expires_at=None)
+
+        assert len(monitor.list_keys()) == 4
+
+        # Purge keys relative to ref_date
+        purged = monitor.purge_expired_keys(reference_date=ref_date)
+
+        assert set(purged) == {"key-expired-1", "key-expired-2"}
+        assert len(monitor.list_keys()) == 2
+        remaining_ids = {k.key_id for k in monitor.list_keys()}
+        assert remaining_ids == {"key-live", "key-perpetual"}
+
+        # Running purge again is idempotent
+        purged_again = monitor.purge_expired_keys(reference_date=ref_date)
+        assert purged_again == []
