@@ -43,8 +43,10 @@ class MemoryEngine:
         fact_store: Optional[BaseFactStore] = None,
         vector_store: Optional[BaseVectorStore] = None,
         embedder: Optional[BaseEmbedder] = None,
+        guardrails_client: Optional[Any] = None,
     ):
         self.config = config or default_config
+        self.guardrails_client = guardrails_client
 
         # Embedder
         self.embedder = embedder or get_embedder(self.config)
@@ -115,6 +117,29 @@ class MemoryEngine:
         """
         metadata = metadata or {}
         event_id = uuid4()
+
+        # W9: Guardrails inbound sanitization check (redact PII before storing)
+        if getattr(self, "guardrails_client", None):
+            try:
+                g_res = self.guardrails_client.analyze(text, actor=user_id)
+                if getattr(g_res, "action", None) == "redact" and getattr(g_res, "sanitized_prompt", None):
+                    text = g_res.sanitized_prompt
+                elif getattr(g_res, "action", None) == "block":
+                    raise ValueError(f"Memory write blocked by guardrails: {getattr(g_res, 'reason', '')}")
+            except Exception as ex:
+                if isinstance(ex, ValueError):
+                    raise
+        else:
+            try:
+                from guardrails import GuardrailsEngine, SafetyCheckRequest
+                g_engine = GuardrailsEngine()
+                g_res = g_engine.evaluate(SafetyCheckRequest(prompt=text, actor=user_id))
+                if g_res.action == "redact" and g_res.sanitized_prompt:
+                    text = g_res.sanitized_prompt
+                elif g_res.action == "block":
+                    raise ValueError(f"Memory write blocked by guardrails: {g_res.reason}")
+            except ImportError:
+                pass
 
         # Step 1: Append turn to Tier 1 Working Memory
         if session_id:

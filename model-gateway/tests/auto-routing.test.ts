@@ -21,6 +21,7 @@ describe('Auto Routing & Capability Matrix (Step 7)', () => {
 
   afterEach(() => {
     SSRFGuard.resetResolver();
+    CapabilityMatrix.getInstance().resetActiveProviders();
   });
 
   it('CapabilityMatrix contains required flagship and open-weight models', () => {
@@ -276,4 +277,42 @@ describe('Auto Routing & Capability Matrix (Step 7)', () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it('W4: Activating provider feeds into capability matrix and enables model selection in Auto mode', () => {
+    const matrix = CapabilityMatrix.getInstance();
+    const router = AutoRouter.getInstance();
+
+    // Initially deactivate all except ollama
+    matrix.setProviderActive('ollama', true);
+    matrix.setProviderActive('openai', false);
+    matrix.setProviderActive('anthropic', false);
+
+    // Auto mode for basic prompt picks ollama model because only ollama is active
+    const localDecision = router.route({
+      model: 'auto',
+      messages: [{ role: 'user', content: 'Hello there' }]
+    });
+    expect(localDecision.model).toBe('llama3.2');
+
+    // Simulate provider activation sync from providers module
+    matrix.syncProviders([
+      {
+        provider: 'openai',
+        active: true,
+        latencyMs: 120,
+        models: ['gpt-4o-mini', 'gpt-4o']
+      }
+    ]);
+
+    expect(matrix.isProviderActive('openai')).toBe(true);
+
+    // Now Auto mode can select the newly activated OpenAI provider
+    const activatedDecision = router.route({
+      model: 'auto',
+      messages: [{ role: 'user', content: 'Hello there' }]
+    });
+    expect(activatedDecision.model).toBe('gpt-4o-mini');
+    expect(activatedDecision.targetAlias).toBe('fast-tier');
+  });
 });
+

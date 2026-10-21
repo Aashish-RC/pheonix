@@ -19,6 +19,8 @@ import { PricingEngine } from '../telemetry/pricing.js';
 import { StreamFailoverManager } from './stream-failover.js';
 import { StreamTransformState } from '../types/provider.js';
 import { ResponseCache } from '../caching/cache.js';
+import { GuardrailPipeline, PromptInjectionGuardrailPlugin, PIIGuardrailPlugin } from '../security/guardrails/pipeline.js';
+import { MemoryWritebackService } from '../telemetry/memory-writeback.js';
 
 export interface GatewayEngineConfig {
   router: ModelRouter;
@@ -28,6 +30,8 @@ export interface GatewayEngineConfig {
   defaultKeyLookupHook?: KeyLookupHook;
   defaultAuditHook?: AuditHook;
   defaultStreamChunkHook?: StreamChunkHook;
+  guardrailPipeline?: GuardrailPipeline;
+  memoryWriteback?: MemoryWritebackService;
 }
 
 /**
@@ -41,6 +45,8 @@ export class GatewayEngine implements IGatewayEngine {
   private keyLookupHook?: KeyLookupHook;
   private auditHook?: AuditHook;
   private streamChunkHook?: StreamChunkHook;
+  private guardrailPipeline: GuardrailPipeline;
+  private memoryWriteback: MemoryWritebackService;
 
   constructor(config: GatewayEngineConfig) {
     this.router = config.router;
@@ -50,6 +56,27 @@ export class GatewayEngine implements IGatewayEngine {
     this.keyLookupHook = config.defaultKeyLookupHook;
     this.auditHook = config.defaultAuditHook;
     this.streamChunkHook = config.defaultStreamChunkHook;
+    this.guardrailPipeline = config.guardrailPipeline || new GuardrailPipeline([
+      new PromptInjectionGuardrailPlugin(),
+      new PIIGuardrailPlugin()
+    ]);
+    this.memoryWriteback = config.memoryWriteback || MemoryWritebackService.getInstance();
+  }
+
+  public setGuardrailPipeline(pipeline: GuardrailPipeline): void {
+    this.guardrailPipeline = pipeline;
+  }
+
+  public getGuardrailPipeline(): GuardrailPipeline {
+    return this.guardrailPipeline;
+  }
+
+  public setMemoryWriteback(service: MemoryWritebackService): void {
+    this.memoryWriteback = service;
+  }
+
+  public getMemoryWriteback(): MemoryWritebackService {
+    return this.memoryWriteback;
   }
 
   public setPermissionHook(hook: PermissionHook): void {
@@ -147,6 +174,31 @@ export class GatewayEngine implements IGatewayEngine {
         });
         return cached;
       }
+    }
+
+    // Guardrail Inbound Scan (Task W8)
+    const guardrailRes = await this.guardrailPipeline.executeBeforeRequest(validated, {
+      requestId: ctx.requestId,
+      model: validated.model,
+      tenantId: ctx.tenantId,
+      userId: ctx.actor
+    });
+    if (!guardrailRes.allowed) {
+      const errMsg = `Guardrail security block: ${guardrailRes.reason}`;
+      await this.emitAuditRecord({
+        ctx,
+        model: validated.model,
+        provider: 'guardrails',
+        targetId: 'guardrail-pipeline',
+        latencyMs: Date.now() - requestStartTime,
+        outcome: 'denied',
+        statusCode: 400,
+        errorMessage: errMsg
+      });
+      const error = new Error(errMsg) as any;
+      error.statusCode = 400;
+      error.openAIError = { error: { message: errMsg, type: 'guardrail_violation', param: null, code: 400 } };
+      throw error;
     }
 
     const systemPrompt = validated.messages.find(m => m.role === 'system')?.content || '';
@@ -321,6 +373,9 @@ export class GatewayEngine implements IGatewayEngine {
           warning: cost === null ? `Unknown model pricing for '${validated.model}'; cost cannot be computed` : undefined
         });
 
+        // Memory Writeback (Task W5)
+        await this.memoryWriteback.recordChatTurn(validated, normalized, ctx);
+
         return normalized;
       } catch (err: any) {
         // If it's already a non-retryable client error or SSRF error, rethrow immediately
@@ -410,6 +465,31 @@ export class GatewayEngine implements IGatewayEngine {
         error.openAIError = { error: { message: errMsg, type: 'approval_required', param: null, code: 428 } };
         throw error;
       }
+    }
+
+    // Guardrail Inbound Scan (Task W8)
+    const guardrailRes = await this.guardrailPipeline.executeBeforeRequest(validated, {
+      requestId: ctx.requestId,
+      model: validated.model,
+      tenantId: ctx.tenantId,
+      userId: ctx.actor
+    });
+    if (!guardrailRes.allowed) {
+      const errMsg = `Guardrail security block: ${guardrailRes.reason}`;
+      await this.emitAuditRecord({
+        ctx,
+        model: validated.model,
+        provider: 'guardrails',
+        targetId: 'guardrail-pipeline',
+        latencyMs: Date.now() - requestStartTime,
+        outcome: 'denied',
+        statusCode: 400,
+        errorMessage: errMsg
+      });
+      const error = new Error(errMsg) as any;
+      error.statusCode = 400;
+      error.openAIError = { error: { message: errMsg, type: 'guardrail_violation', param: null, code: 400 } };
+      throw error;
     }
 
     const systemPrompt = validated.messages.find(m => m.role === 'system')?.content || '';

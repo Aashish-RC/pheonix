@@ -199,3 +199,52 @@ class TestOfflineInference:
 
         dead_llamacpp = LlamaCppRuntimeAdapter(base_url="http://127.0.0.1:59998")
         assert dead_llamacpp.is_available() is False
+
+    def test_serving_generate_streaming_endpoint(self):
+        """
+        Validates Task O2: expose /generate endpoint that proxies with device-profile checks.
+        """
+        from fastapi.testclient import TestClient
+        from serving.server import create_serving_app
+
+        engine = ModelServingEngine()
+        app = create_serving_app(engine)
+        client = TestClient(app)
+
+        # Health endpoint
+        h_res = client.get("/health")
+        assert h_res.status_code == 200
+        assert h_res.json()["status"] == "healthy"
+
+        # Generate streaming endpoint with llama3.2
+        gen_res = client.post(
+            "/generate",
+            json={"model": "llama3.2:1b", "prompt": "Explain quantum computing briefly.", "stream": True},
+        )
+        assert gen_res.status_code == 200
+        assert "text/event-stream" in gen_res.headers["content-type"]
+        assert len(gen_res.text) > 0
+        assert "llama3.2:1b" in gen_res.text
+
+    def test_serving_generate_rejects_model_exceeding_device_profile(self):
+        """
+        Validates Task T5: Device-profile enforcement (phone / limited device cannot run 70B).
+        """
+        from fastapi.testclient import TestClient
+        from serving.server import create_serving_app
+
+        engine = ModelServingEngine()
+        # Register a huge model requiring 500GB RAM
+        huge_model = ModelArtifact(model_id="llama3-70b", parameter_size="70B", min_ram_gb=500.0)
+        engine.store.register_artifact(huge_model)
+
+        app = create_serving_app(engine)
+        client = TestClient(app)
+
+        gen_res = client.post(
+            "/generate",
+            json={"model": "llama3-70b", "prompt": "Hi", "stream": False},
+        )
+        assert gen_res.status_code == 422
+        assert "Device profile insufficient" in gen_res.json()["detail"]
+

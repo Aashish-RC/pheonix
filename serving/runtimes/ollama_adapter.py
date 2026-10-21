@@ -80,3 +80,20 @@ class OllamaRuntimeAdapter(LocalRuntimeAdapter):
                 )
         except Exception as e:
             raise RuntimeError(f"Ollama execution error: {str(e)}") from e
+
+    def stream_generate(self, model: str, prompt: str):
+        """Streams raw token events from Ollama /api/generate endpoint."""
+        payload = {
+            "model": model,
+            "prompt": prompt,
+            "stream": True,
+        }
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                with client.stream("POST", f"{self.base_url}/api/generate", json=payload) as response:
+                    for line in response.iter_lines():
+                        if line:
+                            yield line
+        except Exception as e:
+            raise RuntimeError(f"Ollama streaming error: {str(e)}") from e
+

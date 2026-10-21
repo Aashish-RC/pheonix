@@ -61,3 +61,12 @@ class MockOfflineRuntimeAdapter(LocalRuntimeAdapter):
             tokens_completion=completion_tokens,
             latency_ms=latency_ms
         )
+
+    def stream_generate(self, model: str, prompt: str):
+        """Simulates streamed token generation."""
+        import json
+        tokens = ["Pheonix", " local", " serving", " offline", " response", " for: ", prompt[:24]]
+        for tok in tokens:
+            yield json.dumps({"model": model, "response": tok, "done": False})
+        yield json.dumps({"model": model, "response": "", "done": True})
+

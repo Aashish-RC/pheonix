@@ -46,8 +46,9 @@ export class AutoRouter {
     // 2. Modality Analysis: Detect Vision / Multi-modal payloads
     const hasVision = this.detectVisionInput(req);
     if (hasVision) {
+      const best = this.matrix.findBestMatch({ requiresVision: true });
       return {
-        model: 'gemini-1.5-pro',
+        model: best.model,
         targetAlias: 'vision-tier',
         oneLineReason: 'Selected vision-tier: Multimodal image or document visual payload detected in prompt.',
         isOverride: false
@@ -57,8 +58,9 @@ export class AutoRouter {
     // 3. Tool Calling / Function calling
     const hasTools = Array.isArray(req.tools) && req.tools.length > 0;
     if (hasTools) {
+      const best = this.matrix.findBestMatch({ requiresToolCall: true, requiresReasoning: true });
       return {
-        model: 'claude-3-7-sonnet-20250219',
+        model: best.model,
         targetAlias: 'smart-tier',
         oneLineReason: `Selected smart-tier: High-precision tool execution required for ${req.tools?.length} registered functions.`,
         isOverride: false
@@ -74,8 +76,9 @@ export class AutoRouter {
 
     if (totalChars > 12000 || hasCodeIndicators || hasReasoningIndicators) {
       const trait = hasCodeIndicators ? 'software development' : hasReasoningIndicators ? 'deep step-by-step reasoning' : 'large context processing';
+      const best = this.matrix.findBestMatch({ requiresCode: hasCodeIndicators, requiresReasoning: hasReasoningIndicators });
       return {
-        model: 'claude-3-7-sonnet-20250219',
+        model: best.model,
         targetAlias: 'smart-tier',
         oneLineReason: `Selected smart-tier: High-complexity prompt detected requiring ${trait}.`,
         isOverride: false
@@ -83,8 +86,9 @@ export class AutoRouter {
     }
 
     // 5. Default Fast Tier for standard conversational interaction
+    const best = this.matrix.findBestMatch({ preferUltraFast: true, preferLowCost: true });
     return {
-      model: 'gpt-4o-mini',
+      model: best.model,
       targetAlias: 'fast-tier',
       oneLineReason: 'Selected fast-tier: Standard conversational query matched for ultra-fast, cost-effective inference.',
       isOverride: false

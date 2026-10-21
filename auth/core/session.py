@@ -83,3 +83,55 @@ def verify_session_token(
         return False, payload, "Token has expired"
 
     return True, payload, None
+
+
+def create_session_token_with_vault(
+    session_id: str,
+    user_id: str,
+    device_id: str,
+    ttl_seconds: float,
+    vault_manager: Any,
+    key_id: str = "auth_session_signing_key",
+) -> Tuple[str, float, float]:
+    """
+    Generate an HMAC-SHA256 signed session token string using a key leased from the Vault.
+    Guarantees ephemeral key zeroization upon lease release.
+    """
+    lease = vault_manager.get_lease(key_id, ttl_seconds=ttl_seconds)
+    try:
+        secret_str = lease.get_plaintext()
+        try:
+            signing_key = bytes.fromhex(secret_str)
+        except ValueError:
+            signing_key = secret_str.encode("utf-8")
+        return create_session_token(
+            session_id=session_id,
+            user_id=user_id,
+            device_id=device_id,
+            ttl_seconds=ttl_seconds,
+            signing_key=signing_key,
+        )
+    finally:
+        lease.release()
+
+
+def verify_session_token_with_vault(
+    token_str: str,
+    vault_manager: Any,
+    key_id: str = "auth_session_signing_key",
+) -> Tuple[bool, Optional[Dict[str, Any]], Optional[str]]:
+    """
+    Verify signature and validity of a session token string using a key leased from the Vault.
+    """
+    lease = vault_manager.get_lease(key_id, ttl_seconds=60.0)
+    try:
+        secret_str = lease.get_plaintext()
+        try:
+            signing_key = bytes.fromhex(secret_str)
+        except ValueError:
+            signing_key = secret_str.encode("utf-8")
+        return verify_session_token(token_str=token_str, signing_key=signing_key)
+    finally:
+        lease.release()
+
+

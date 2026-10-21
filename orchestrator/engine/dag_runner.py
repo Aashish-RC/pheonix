@@ -25,11 +25,49 @@ class ParallelDAGRunner(BaseDAGRunner):
         planner: Optional[MultiStepPlanner] = None,
         store: Optional[SQLitePlanStore] = None,
         budget_guard: Optional[BudgetGuard] = None,
+        sandbox_manager: Optional[Any] = None,
+        tool_dispatcher: Optional[Any] = None,
+        notification_listener: Optional[Any] = None,
+        max_resource_concurrency: Optional[int] = None,
     ):
         self.planner = planner or MultiStepPlanner()
         self.store = store or SQLitePlanStore(db_path=":memory:")
         self.budget_guard = budget_guard or BudgetGuard()
+        self._sandbox_manager = sandbox_manager
+        self._tool_dispatcher = tool_dispatcher
+        self._notification_listener = notification_listener
+        self.max_resource_concurrency = max_resource_concurrency
         self._handlers: Dict[str, Callable[[PlanNode, Dict[str, Any]], Any]] = {}
+
+    @property
+    def sandbox_manager(self) -> Any:
+        if self._sandbox_manager is None:
+            try:
+                from sandboxes.manager import SandboxManager
+                self._sandbox_manager = SandboxManager()
+            except Exception:
+                pass
+        return self._sandbox_manager
+
+    @property
+    def tool_dispatcher(self) -> Any:
+        if self._tool_dispatcher is None:
+            try:
+                from tools_mcp.runner.dispatcher import ToolDispatcher
+                self._tool_dispatcher = ToolDispatcher()
+            except Exception:
+                pass
+        return self._tool_dispatcher
+
+    @property
+    def notification_listener(self) -> Any:
+        if self._notification_listener is None:
+            try:
+                from notifications.listener.orchestrator_listener import OrchestratorListener
+                self._notification_listener = OrchestratorListener()
+            except Exception:
+                pass
+        return self._notification_listener
 
     def register_handler(self, action: str, handler: Callable[[PlanNode, Dict[str, Any]], Any]) -> None:
         """Register custom execution logic for an action type."""
@@ -51,6 +89,60 @@ class ParallelDAGRunner(BaseDAGRunner):
             handler = self._handlers.get(node.action)
             if handler:
                 output = handler(node, context)
+            elif (
+                node.action in ("code", "code_execution", "sandbox", "run_code")
+                or node.action.startswith("sandbox:")
+            ):
+                # W6: Wire orchestrator -> sandboxes
+                sm = self.sandbox_manager
+                if sm:
+                    from sandboxes.core.models import ExecutionRequest, SandboxStatus
+                    code = node.params.get("code") or node.params.get("script") or ""
+                    language = node.params.get("language", "python")
+                    project_id = node.params.get("project_id", "orchestrator")
+                    req = ExecutionRequest(
+                        code=code,
+                        language=language,
+                        project_id=project_id,
+                        environment=node.params.get("environment", {}),
+                    )
+                    res = sm.run(req)
+                    if res.status != SandboxStatus.SUCCESS:
+                        raise RuntimeError(f"Sandbox error ({res.status.value}): {res.stderr or res.stdout}")
+                    output = res.stdout.strip()
+                else:
+                    output = f"Simulated sandbox execution: {node.title}"
+            elif (
+                node.action in ("tool", "tool_call", "mcp", "dispatch_tool")
+                or node.action.startswith("tool:")
+                or (self.tool_dispatcher and self.tool_dispatcher.registry.get_tool(node.action))
+            ):
+                # W7: Wire orchestrator -> tools_mcp
+                td = self.tool_dispatcher
+                if td:
+                    from tools_mcp.core.models import ToolInvocation
+                    tool_name = node.params.get("tool_name")
+                    if not tool_name:
+                        if node.action.startswith("tool:"):
+                            tool_name = node.action.split("tool:", 1)[1]
+                        elif node.action not in ("tool", "tool_call", "mcp", "dispatch_tool"):
+                            tool_name = node.action
+                        else:
+                            tool_name = node.params.get("name", "")
+
+                    arguments = (
+                        node.params.get("arguments")
+                        or node.params.get("parameters")
+                        or node.params.get("params")
+                        or {k: v for k, v in node.params.items() if k not in ("tool_name", "name")}
+                    )
+                    inv = ToolInvocation(tool_name=tool_name, arguments=arguments)
+                    tres = td.dispatch(inv)
+                    if not tres.success:
+                        raise RuntimeError(f"Tool '{tool_name}' failed: {tres.error}")
+                    output = tres.output
+                else:
+                    output = f"Simulated tool dispatch: {node.title}"
             else:
                 # Default executor
                 time.sleep(0.01)  # Minimal simulated work
@@ -108,7 +200,10 @@ class ParallelDAGRunner(BaseDAGRunner):
         node_results: Dict[str, StepResult] = {}
         plan_aborted = False
 
-        max_workers = min(plan.max_concurrency, 16)
+        concurrency_limit = plan.max_concurrency
+        if self.max_resource_concurrency is not None:
+            concurrency_limit = min(concurrency_limit, self.max_resource_concurrency)
+        max_workers = max(1, min(concurrency_limit, 16))
 
         for layer in layers:
             # Check for cancellation before starting the layer
@@ -185,6 +280,19 @@ class ParallelDAGRunner(BaseDAGRunner):
 
         plan.status = final_status
         self.store.save_plan(plan)
+
+        # W13: Fire notification event upon task finish
+        nl = self.notification_listener
+        if nl:
+            try:
+                nl.on_task_finished(
+                    task_id=plan.id,
+                    task_name=plan.title,
+                    status="success" if final_status == TaskStatus.COMPLETED else "failed",
+                    summary=f"Plan '{plan.title}' finished with status '{final_status.value}' ({completed} completed, {failed} failed).",
+                )
+            except Exception:
+                pass
 
         return PlanExecutionReport(
             plan_id=plan.id,

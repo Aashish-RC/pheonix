@@ -185,3 +185,23 @@ class ProviderActivationManager:
             if status_filter is None or rec.status == status_filter:
                 results.append(rec)
         return results
+
+    def export_capability_sync(self) -> List[Dict[str, Any]]:
+        """
+        Export provider activation statuses for gateway capability matrix synchronization.
+        Wires providers -> model-gateway capability matrix.
+        """
+        sync_payload = []
+        for pid in list(self._activated.keys()):
+            self.get_provider_status(pid)
+            rec = self._activated[pid]
+            desc = ProviderCatalog.get_descriptor(pid)
+            sync_payload.append({
+                "provider": pid,
+                "active": rec.status == ProviderStatus.ACTIVE,
+                "latencyMs": rec.last_latency_ms,
+                "models": desc.models if desc else [],
+                "keyId": rec.key_id,
+            })
+        return sync_payload
+

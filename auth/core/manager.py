@@ -11,7 +11,12 @@ from pathlib import Path
 
 from ..models import UserRecord, DeviceInfo, SessionToken, SessionInfo
 from .password import hash_password, verify_password
-from .session import create_session_token, verify_session_token
+from .session import (
+    create_session_token,
+    verify_session_token,
+    create_session_token_with_vault,
+    verify_session_token_with_vault,
+)
 from .device import DeviceRegistry
 
 
@@ -29,11 +34,31 @@ class AuthManager:
     """
     Manages single-user local authentication, cryptographic session lifecycle,
     and registered device management.
+    Supports Vault key-lease backend for zero-plaintext key storage.
     """
 
-    def __init__(self, signing_key: bytes = None):
-        # 256-bit signing key for session tokens
-        self._signing_key = signing_key or os.urandom(32)
+    def __init__(
+        self,
+        signing_key: bytes = None,
+        vault_manager: Any = None,
+        vault_key_id: str = "auth_session_signing_key",
+    ):
+        self._vault_manager = vault_manager
+        self._vault_key_id = vault_key_id
+
+        if self._vault_manager:
+            if not self._vault_manager.has_secret(vault_key_id):
+                key_bytes = signing_key or os.urandom(32)
+                self._vault_manager.put_secret(
+                    key_id=vault_key_id,
+                    secret=key_bytes.hex(),
+                    provider="auth_session",
+                    description="Session token HMAC signing key",
+                )
+            self._signing_key = None
+        else:
+            self._signing_key = signing_key or os.urandom(32)
+
         self.device_registry = DeviceRegistry()
         self._user: Optional[UserRecord] = None
         # session_id -> { "session_id", "user_id", "device_id", "issued_at", "expires_at", "is_active" }
@@ -93,13 +118,23 @@ class AuthManager:
 
         # Issue signed cryptographic session token
         session_id = f"sess_{uuid.uuid4().hex[:16]}"
-        token_str, iat, exp = create_session_token(
-            session_id=session_id,
-            user_id=self._user.user_id,
-            device_id=device_id,
-            ttl_seconds=ttl_seconds,
-            signing_key=self._signing_key,
-        )
+        if self._vault_manager:
+            token_str, iat, exp = create_session_token_with_vault(
+                session_id=session_id,
+                user_id=self._user.user_id,
+                device_id=device_id,
+                ttl_seconds=ttl_seconds,
+                vault_manager=self._vault_manager,
+                key_id=self._vault_key_id,
+            )
+        else:
+            token_str, iat, exp = create_session_token(
+                session_id=session_id,
+                user_id=self._user.user_id,
+                device_id=device_id,
+                ttl_seconds=ttl_seconds,
+                signing_key=self._signing_key,
+            )
 
         self._sessions[session_id] = {
             "session_id": session_id,
@@ -125,7 +160,15 @@ class AuthManager:
         """
         Validate cryptographic signature, expiration, session state, and device state.
         """
-        is_valid, payload, err = verify_session_token(token_str, self._signing_key)
+        if self._vault_manager:
+            is_valid, payload, err = verify_session_token_with_vault(
+                token_str=token_str,
+                vault_manager=self._vault_manager,
+                key_id=self._vault_key_id,
+            )
+        else:
+            is_valid, payload, err = verify_session_token(token_str, self._signing_key)
+
         if not is_valid:
             raise SessionInvalidError(f"Session verification failed: {err}")
 

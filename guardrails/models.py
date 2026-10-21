@@ -1,19 +1,30 @@
 """
 Pheonix Guardrails Data Models
-Defines schema for threat categories, safety check requests, decisions, and crisis notices.
+Defines schema for threat categories, safety check requests, decisions, severity levels, and crisis notices.
 """
 
 from typing import List, Dict, Any, Optional, Literal
 from pydantic import BaseModel, Field
 
 
-SafetyAction = Literal["allow", "block", "redact", "crisis_intervention"]
+SafetyAction = Literal["allow", "warn", "block", "redact", "crisis_intervention"]
+SeverityLevel = Literal["allow", "warn", "redact", "block", "crisis"]
+
+SEVERITY_ORDER = {
+    "allow": 0,
+    "warn": 1,
+    "redact": 2,
+    "block": 3,
+    "crisis": 4,
+}
+
 ThreatCategory = Literal[
     "prompt_injection",
     "jailbreak",
     "pii_leak",
     "toxic_content",
     "crisis_self_harm",
+    "harmful_output",
     "none"
 ]
 
@@ -26,8 +37,9 @@ class SafetyCheckRequest(BaseModel):
 
 
 class SafetyCheckResult(BaseModel):
-    """Outcome of safety evaluation, indicating action, threat type, and sanitized output."""
+    """Outcome of safety evaluation, indicating action, threat type, severity, and sanitized output."""
     action: SafetyAction
+    severity: SeverityLevel = "allow"
     threat_category: ThreatCategory = "none"
     sanitized_prompt: Optional[str] = None
     reason: Optional[str] = None

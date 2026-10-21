@@ -92,3 +92,36 @@ class ModelServingEngine:
             response = selected_runtime.chat_completion(request)
 
         return response
+
+    def stream_generate(self, model: str, prompt: str, runtime_name: Optional[str] = None):
+        """
+        Executes streamed token generation with device-profile validation.
+        Validates that device memory capacity supports the model artifact.
+        """
+        artifact = self.store.get_artifact(model)
+        min_ram = artifact.min_ram_gb if artifact else 2.0
+        min_vram = artifact.min_vram_gb if artifact else 0.0
+
+        # Device profile validation: model cannot exceed total device RAM
+        if min_ram > self.profile.total_ram_gb:
+            raise ResourceLimitExceededError(
+                f"Device profile insufficient: Model '{model}' requires {min_ram}GB RAM, but device has only {self.profile.total_ram_gb:.1f}GB."
+            )
+
+        # Select runtime adapter
+        selected_runtime: Optional[LocalRuntimeAdapter] = None
+        if runtime_name:
+            selected_runtime = self.get_runtime(runtime_name)
+        else:
+            for candidate in ["ollama", "llama.cpp", "mock-offline"]:
+                adapter = self._runtimes.get(candidate)
+                if adapter and adapter.is_available():
+                    selected_runtime = adapter
+                    break
+
+        if not selected_runtime:
+            raise RuntimeError("No local runtime available for streaming generation.")
+
+        # Stream generator
+        return selected_runtime.stream_generate(model=model, prompt=prompt)
+

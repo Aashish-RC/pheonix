@@ -116,6 +116,8 @@ export class CapabilityMatrix {
     }
   }
 
+  private activeProviders: Set<string> = new Set();
+
   public get(model: string): ModelCapability | undefined {
     return this.capabilities.get(model.toLowerCase());
   }
@@ -128,6 +130,58 @@ export class CapabilityMatrix {
     this.capabilities.set(capability.model.toLowerCase(), capability);
   }
 
+  public setProviderActive(provider: string, active: boolean): void {
+    const key = provider.toLowerCase();
+    if (active) {
+      this.activeProviders.add(key);
+    } else {
+      this.activeProviders.delete(key);
+    }
+  }
+
+  public isProviderActive(provider: string): boolean {
+    if (this.activeProviders.size === 0) return true;
+    return this.activeProviders.has(provider.toLowerCase());
+  }
+
+  public resetActiveProviders(): void {
+    this.activeProviders.clear();
+  }
+
+  public getActiveProviders(): string[] {
+    return Array.from(this.activeProviders);
+  }
+
+  public syncProviders(
+    updates: Array<{
+      provider: string;
+      active: boolean;
+      latencyMs?: number | null;
+      models?: string[];
+    }>
+  ): void {
+    for (const update of updates) {
+      this.setProviderActive(update.provider, update.active);
+      if (update.models) {
+        for (const m of update.models) {
+          if (!this.capabilities.has(m.toLowerCase())) {
+            this.register({
+              model: m,
+              provider: update.provider.toLowerCase(),
+              contextWindow: 16384,
+              hasVision: false,
+              hasCode: true,
+              hasReasoning: false,
+              hasToolCall: true,
+              costTier: 'medium',
+              latencyTier: update.latencyMs && update.latencyMs < 500 ? 'ultra-fast' : 'fast'
+            });
+          }
+        }
+      }
+    }
+  }
+
   public findBestMatch(criteria: {
     requiresVision?: boolean;
     requiresCode?: boolean;
@@ -137,6 +191,16 @@ export class CapabilityMatrix {
     preferUltraFast?: boolean;
   }): ModelCapability {
     let candidates = Array.from(this.capabilities.values());
+
+    // If explicit active providers are tracked, filter by active providers
+    if (this.activeProviders.size > 0) {
+      const activeCandidates = candidates.filter((c) =>
+        this.activeProviders.has(c.provider.toLowerCase())
+      );
+      if (activeCandidates.length > 0) {
+        candidates = activeCandidates;
+      }
+    }
 
     if (criteria.requiresVision) {
       candidates = candidates.filter((c) => c.hasVision);
@@ -170,3 +234,4 @@ export class CapabilityMatrix {
     return candidates[0];
   }
 }
+

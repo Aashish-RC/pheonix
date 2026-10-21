@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pheonix"
+version = "0.1.0"
+description = "Pheonix — Unified AI App Ecosystem & Agent Platform"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "Pheonix Core Team" }
+]
+dependencies = [
+    "pydantic>=2.6.0",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.28.0",
+    "httpx>=0.27.0",
+    "cryptography>=43.0.0",
+    "psutil>=5.9.0",
+    "numpy>=1.24.0",
+    "tiktoken>=0.6.0",
+    "jsonschema>=4.21.0",
+    "pyyaml>=6.0.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-mock>=3.12.0",
+]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-mock>=3.12.0",
+    "ruff>=0.3.0",
+    "mypy>=1.9.0",
+    "pre-commit>=3.6.0",
+]
+integrations = [
+    "qdrant-client>=1.8.0",
+    "meilisearch>=0.30.0",
+    "redis>=5.0.0",
+]
+all = [
+    "pheonix[test,dev,integrations]",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = [
+    "agent*", "agent_builder*", "auth*", "browser_automation*", "canvas*",
+    "guardrails*", "internal_agents*", "knowledge*", "media_gen*", "memory*",
+    "notifications*", "observability*", "orchestrator*", "permissions*",
+    "providers*", "recommender*", "registry*", "release_finishing*",
+    "remote_access*", "rules*", "sandboxes*", "search*", "serving*",
+    "skills_packaging*", "storage*", "sync_engine*", "tools_mcp*",
+    "tracker*", "translation*", "vault*", "voice_speech*", "web_search*",
+    "workflow_builder*"
+]
+exclude = ["tests*", "model-gateway*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = "test_*.py"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [
+    ".git",
+    "node_modules",
+    "__pycache__",
+    ".pytest_cache",
+    "model-gateway",
+]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_configs = true
+exclude = ["model-gateway/", "node_modules/"]

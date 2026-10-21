@@ -58,6 +58,16 @@ class QdrantAdapter(BaseVectorStore):
         except Exception as e:
             raise AdapterConnectionError(f"Failed to initialize Qdrant at '{self._location}': {e}")
 
+    def check_health(self) -> bool:
+        """Verify connection and collection readiness."""
+        try:
+            if not self._client:
+                return False
+            collections = self._client.get_collections().collections
+            return any(c.name == self._collection_name for c in collections)
+        except Exception:
+            return False
+
     def upsert_vectors(self, records: List[MemoryRecord]) -> List[UUID]:
         if not records:
             return []

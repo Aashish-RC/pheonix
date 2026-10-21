@@ -184,3 +184,44 @@ def test_session_sign_out(auth_manager):
         auth_manager.validate_session(session.token_string)
 
     assert len(auth_manager.list_active_sessions()) == 0
+
+
+def test_auth_with_vault_backend(tmp_path):
+    """
+    Validates W3: Wire auth -> vault.
+    Auth session token creation and verification using vault's key-lease API.
+    """
+    from vault import KeyStoreManager
+
+    vault_file = tmp_path / "test_vault.enc"
+    vault = KeyStoreManager(vault_file)
+    vault.initialize("master-vault-passphrase-2026")
+
+    # Initialize AuthManager with vault backend
+    auth_mgr = AuthManager(vault_manager=vault)
+    auth_mgr.register_initial_user("charlie", "VaultSecuredPassword99!")
+
+    # Vault now has the session signing key stored
+    assert vault.has_secret("auth_session_signing_key") is True
+
+    # Authenticate and obtain session token signed via leased key
+    session = auth_mgr.authenticate(
+        username="charlie",
+        password="VaultSecuredPassword99!",
+        device_id="vault_device_01",
+        device_name="Charlie Hardware Token",
+        platform="linux",
+    )
+    assert session.token_string is not None
+
+    # Validate session via leased key
+    payload = auth_mgr.validate_session(session.token_string)
+    assert payload["sid"] == session.session_id
+    assert payload["uid"] == auth_mgr._user.user_id
+    assert payload["did"] == "vault_device_01"
+
+    # Verify tampering is rejected
+    tampered = session.token_string[:-4] + "abcd"
+    with pytest.raises(SessionInvalidError):
+        auth_mgr.validate_session(tampered)
+

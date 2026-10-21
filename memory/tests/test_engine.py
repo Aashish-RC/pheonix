@@ -184,3 +184,41 @@ def test_session_consolidation_workflow(temp_engine):
     # Recalling in new session should still retrieve the milestone via Tier 3
     recalled = temp_engine.recall(user_id=user_id, query="CI pipeline database", session_id="s_next")
     assert len(recalled.archival_matches) > 0
+
+
+def test_qdrant_adapter_health_and_retrieval():
+    """
+    Validates Task O1: Qdrant adapter connection health check and vector indexing.
+    """
+    from memory.embeddings.qdrant_adapter import QdrantAdapter
+    from core.models import MemoryRecord, utc_now
+    from uuid import uuid4
+
+    adapter = QdrantAdapter(location=":memory:", collection_name="test_health_col", dim=128)
+    # 1. Connection health check
+    assert adapter.check_health() is True
+
+    # 2. Vector indexing
+    rec = MemoryRecord(
+        id=uuid4(),
+        user_id="user_qdrant_test",
+        text="Specialist in distributed consensus algorithms and Paxos.",
+        embedding=[0.1] * 128,
+        confidence_score=0.98,
+        created_at=utc_now(),
+        updated_at=utc_now(),
+        last_accessed_at=utc_now(),
+    )
+    upserted = adapter.upsert_vectors([rec])
+    assert len(upserted) == 1
+    assert upserted[0] == rec.id
+
+    # 3. Vector query
+    matches = adapter.query_similar(
+        user_id="user_qdrant_test",
+        query_embedding=[0.1] * 128,
+        top_k=3,
+    )
+    assert len(matches) == 1
+    assert matches[0].text == "Specialist in distributed consensus algorithms and Paxos."
+
