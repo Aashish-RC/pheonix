@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pheonix-sync-engine"
+version = "0.1.0"
+description = "Cross-Device State Synchronization, CRDT & Vector Clocks Conflict Resolution, and Delta Replication for Pheonix"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.0.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+testpaths = ["tests"]
