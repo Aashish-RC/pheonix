@@ -1,5 +1,6 @@
 """Local Process Runner: Resource-governed subprocess execution with timeouts and output bounds."""
 
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -17,6 +18,14 @@ class LocalProcessRunner(BaseDeviceRunner):
         self.governor = governor
 
     def execute(self, request: ExecutionRequest, scratch_dir: str) -> SandboxResult:
+        if os.getenv("SANDBOX_ALLOW_LOCAL") != "1":
+            return SandboxResult(
+                request_id=request.id,
+                status=SandboxStatus.BLOCKED,
+                exit_code=-1,
+                stderr="Local subprocess execution disallowed; set SANDBOX_ALLOW_LOCAL=1 to allow.",
+            )
+
         scratch_path = Path(scratch_dir).resolve()
         scratch_path.mkdir(parents=True, exist_ok=True)
 

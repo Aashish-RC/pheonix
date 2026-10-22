@@ -19,6 +19,7 @@ from .core.engines import (
 from .governor.security_governor import SecurityGovernor
 from .runner.local_process_runner import LocalProcessRunner
 from .runner.device_runner import DeviceRunner
+from .runner.docker_runner import DockerRunner
 from .manager import SandboxManager
 
 __all__ = [
@@ -35,5 +36,6 @@ __all__ = [
     "SecurityGovernor",
     "LocalProcessRunner",
     "DeviceRunner",
+    "DockerRunner",
     "SandboxManager",
 ]

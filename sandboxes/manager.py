@@ -12,9 +12,11 @@ from .core.models import (
     SandboxStatus,
     SandboxTimeoutError,
 )
+import os
 from .core.engines import E2BExecutionEngine, DockerExecutionEngine
 from .governor.security_governor import SecurityGovernor
 from .runner.device_runner import DeviceRunner
+from .runner.docker_runner import DockerRunner
 
 
 class SandboxManager(BaseSandboxManager):
@@ -27,7 +29,16 @@ class SandboxManager(BaseSandboxManager):
         engine: Optional[BaseDeviceRunner] = None,
     ):
         self.governor = governor or SecurityGovernor()
-        self.runner = engine or device_runner or DeviceRunner(self.governor)
+        if engine or device_runner:
+            self.runner = engine or device_runner
+        else:
+            docker_runner = DockerRunner(self.governor)
+            if docker_runner.is_docker_available():
+                self.runner = docker_runner
+            elif os.getenv("SANDBOX_ALLOW_LOCAL") == "1":
+                self.runner = DeviceRunner(self.governor)
+            else:
+                self.runner = docker_runner
 
     def run(
         self,

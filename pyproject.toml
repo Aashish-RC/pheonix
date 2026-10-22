@@ -68,6 +68,7 @@ testpaths = ["tests"]
 python_files = "test_*.py"
 markers = [
     "live: marks tests as requiring live infrastructure (run with -m live)",
+    "disallow_local: marks tests testing disallowal of local sandbox subprocess runner",
 ]
 
 [tool.ruff]
