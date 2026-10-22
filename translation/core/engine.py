@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 from typing import Optional
+import httpx
 from translation.core.cache import TranslationCache
 from translation.core.detector import LocaleDetector
 from translation.core.models import LanguageCode
@@ -22,15 +23,19 @@ class OfflineTranslationEngine:
 
     def __init__(
         self,
-        endpoint_url: str = "http://localhost:5000",
+        endpoint_url: Optional[str] = None,
+        gateway_url: Optional[str] = None,
         cache_capacity: int = 1000,
-        detector: Optional[LocaleDetector] = None
+        detector: Optional[LocaleDetector] = None,
+        http_client: Optional[httpx.AsyncClient] = None,
     ):
         self.detector = detector or LocaleDetector()
         self.cache = TranslationCache(max_entries=cache_capacity)
         self.backend = LibreTranslateEngine(
             endpoint_url=endpoint_url,
-            fallback=MockOfflineTranslationEngine()
+            gateway_url=gateway_url,
+            fallback=MockOfflineTranslationEngine(),
+            http_client=http_client,
         )
 
     async def translate_async(
