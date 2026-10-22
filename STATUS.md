@@ -44,7 +44,7 @@
 | **29** | **Voice and Speech** (`voice_speech`) | **PARTIAL** | `voice_speech/stt/dictation_engine.py`, `voice_speech/tests/test_voice_speech.py` | Live Whisper model weights, real audio I/O hardware, and LiveKit RTC server. |
 | **30** | **Media Generation** (`media_gen`) | **SIMULATED** | `media_gen/engines/image_engine.py`, `media_gen/tests/test_media_gen.py` | Real ComfyUI or Stability AI API; generates synthetic mock PNG binary bytes. |
 | **31** | **Translation** (`translation`) | **SIMULATED** | `translation/engines/libre_engine.py`, `translation/tests/test_translation.py` | Real network HTTP calls to LibreTranslate; routes to mock translation dictionary. |
-| **32** | **Remote Access & Pairing** (`remote_access`) | **SIMULATED** | `remote_access/core/relay.py`, `remote_access/tests/test_wireguard_relay.py` | Real WireGuard kernel/userspace tunnel interface; NAT and keys are simulated. |
+| **32** | **Remote Access & Pairing** (`remote_access`) | **PARTIAL** | `remote_access/relay_server.py`, `remote_access/tests/test_relay_server.py` | Real WireGuard kernel tunnel interface; X25519 pairing, ChaCha20-Poly1305, and WebSocket relay verified. |
 | **33** | **Sync** (`sync_engine`) | **PARTIAL** | `sync_engine/core/engine.py`, `sync_engine/tests/test_sync_engine.py` | Live peer-to-peer network transport across physically separate machines. |
 | **34** | **Component Registry Finishing** (`release_finishing`) | **REAL** | `release_finishing/core/releaser.py`, `release_finishing/tests/test_release_finishing.py` | Live signed binary CDN distribution. |
 

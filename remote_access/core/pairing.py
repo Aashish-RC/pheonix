@@ -106,24 +106,45 @@ class PairingCoordinator:
 
 import base64
 import os
+from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X25519PublicKey
+from cryptography.hazmat.primitives.serialization import (
+    Encoding,
+    NoEncryption,
+    PrivateFormat,
+    PublicFormat,
+)
 
 
 def generate_wireguard_keys() -> Tuple[str, str]:
-    """Generates Curve25519-compatible base64-encoded WireGuard private and public key pair."""
-    priv = base64.b64encode(os.urandom(32)).decode("ascii")
-    pub = base64.b64encode(os.urandom(32)).decode("ascii")
-    return priv, pub
+    """Generates real Curve25519/X25519 base64-encoded WireGuard private and public key pair."""
+    priv = X25519PrivateKey.generate()
+    pub = priv.public_key()
+    priv_bytes = priv.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption())
+    pub_bytes = pub.public_bytes(Encoding.Raw, PublicFormat.Raw)
+    return base64.b64encode(priv_bytes).decode("ascii"), base64.b64encode(pub_bytes).decode("ascii")
+
+
+def perform_x25519_key_exchange(private_key_b64: str, peer_public_key_b64: str) -> bytes:
+    """Performs real X25519 Diffie-Hellman key exchange and returns 32-byte shared secret."""
+    priv_bytes = base64.b64decode(private_key_b64)
+    pub_bytes = base64.b64decode(peer_public_key_b64)
+    priv = X25519PrivateKey.from_private_bytes(priv_bytes)
+    pub = X25519PublicKey.from_public_bytes(pub_bytes)
+    return priv.exchange(pub)
 
 
 def generate_wireguard_config(
     client_private_key: str,
     client_ip: str = "10.100.0.2",
-    server_public_key: str = "pub_server_wg_mock",
+    server_public_key: Optional[str] = None,
     server_endpoint: str = "relay.pheonix.internal:51820",
     allowed_ips: str = "10.100.0.0/24",
     dns: str = "1.1.1.1",
 ) -> str:
-    """Generates standard INI format WireGuard client configuration file."""
+    """Generates standard INI format WireGuard client configuration file with real X25519 keys."""
+    if server_public_key is None or server_public_key == "pub_server_wg_mock":
+        _, server_public_key = generate_wireguard_keys()
+
     return f"""[Interface]
 PrivateKey = {client_private_key}
 Address = {client_ip}/32

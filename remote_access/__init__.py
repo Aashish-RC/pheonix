@@ -15,10 +15,12 @@ from remote_access.core.pairing import (
     PairingCoordinator,
     generate_wireguard_keys,
     generate_wireguard_config,
+    perform_x25519_key_exchange,
 )
 from remote_access.core.path_selector import PathSelector
 from remote_access.core.relay import AdaptiveRelayChannel
 from remote_access.relay.relay_service import EncryptedRelayRouter
+from remote_access.relay_server import WebSocketRelayServer
 
 __all__ = [
     "DeviceType",
@@ -30,9 +32,11 @@ __all__ = [
     "PairingCoordinator",
     "generate_wireguard_keys",
     "generate_wireguard_config",
+    "perform_x25519_key_exchange",
     "E2EEncryptedChannel",
     "PairedDeviceRegistry",
     "PathSelector",
     "AdaptiveRelayChannel",
     "EncryptedRelayRouter",
+    "WebSocketRelayServer",
 ]
