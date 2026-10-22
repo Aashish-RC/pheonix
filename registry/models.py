@@ -30,6 +30,22 @@ class ComponentManifest(BaseModel):
     created_at: float = Field(default_factory=time.time)
     updated_at: float = Field(default_factory=time.time)
 
+    @classmethod
+    def __pydantic_init_subclass__(cls, **kwargs):
+        super().__pydantic_init_subclass__(**kwargs)
+
+    @classmethod
+    def model_validate(cls, *args, **kwargs):
+        res = super().model_validate(*args, **kwargs)
+        from .core.semver import parse_version
+        parse_version(res.version)
+        return res
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        from .core.semver import parse_version
+        parse_version(self.version)
+
 
 class ValidationResult(BaseModel):
     is_compatible: bool

@@ -12,6 +12,14 @@ from release_finishing.core.models import (
 from release_finishing.core.rollout import StagedRolloutController
 
 
+def _extract_major(v: str) -> int:
+    try:
+        clean = v.lstrip("v").split(".")[0].split("-")[0]
+        return int(clean)
+    except (ValueError, IndexError):
+        return 0
+
+
 class UpdateChannelManager:
     """Coordinates version upgrades, channel selection, and automated rollback."""
 
@@ -20,18 +28,22 @@ class UpdateChannelManager:
         current_version: str = "0.1.0",
         channel: ReleaseChannel = ReleaseChannel.STABLE,
         rollout_controller: Optional[StagedRolloutController] = None,
+        allow_major_upgrades: bool = False,
     ):
         self.current_version = current_version
         self.channel = channel
         self.rollout = rollout_controller or StagedRolloutController()
         self.version_history: List[str] = [current_version]
         self._available_releases: Dict[str, ReleasePackage] = {}
+        self.allow_major_upgrades = allow_major_upgrades
 
     def publish_release(self, release: ReleasePackage) -> None:
         self._available_releases[release.version] = release
         self.rollout.register_release(release)
 
-    def check_for_updates(self, client_id: str = "local-device") -> Optional[ReleasePackage]:
+    def check_for_updates(
+        self, client_id: str = "local-device", allow_major: bool = False
+    ) -> Optional[ReleasePackage]:
         """Finds the newest available release matching channel and canary cohort."""
         candidates = [
             r for r in self._available_releases.values()
@@ -40,6 +52,10 @@ class UpdateChannelManager:
         candidates.sort(key=lambda r: r.created_at, reverse=True)
 
         for rel in candidates:
+            # Respect major-version block during check if not permitted
+            if _extract_major(rel.version) > _extract_major(self.current_version):
+                if not (allow_major or self.allow_major_upgrades):
+                    continue
             if self.rollout.is_eligible_for_update(client_id, rel):
                 return rel
         return None
@@ -48,9 +64,16 @@ class UpdateChannelManager:
         self,
         release: ReleasePackage,
         simulate_failure: bool = False,
+        allow_major: bool = False,
     ) -> Tuple[bool, str]:
         """Applies upgrade with automatic rollback guard if validation fails."""
         previous_version = self.current_version
+
+        # 0. Major-version block check
+        curr_major = _extract_major(previous_version)
+        new_major = _extract_major(release.version)
+        if new_major > curr_major and not (allow_major or self.allow_major_upgrades):
+            return False, f"Major-version upgrade from {previous_version} to {release.version} is blocked; requires explicit approval"
 
         # 1. Integrity check
         if release.status == ReleaseStatus.ROLLED_BACK:

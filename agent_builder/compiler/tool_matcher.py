@@ -23,6 +23,14 @@ CONSEQUENTIAL_TOOLS: Set[str] = {
 }
 
 
+UNSUPPORTED_CAPABILITY_KEYWORDS: Dict[str, List[str]] = {
+    "sms_messenger": ["sms", "text message", "whatsapp", "phone call"],
+    "quantum_simulator": ["quantum", "qiskit", "qubit"],
+    "stock_trader": ["trade stocks", "buy shares", "nyse", "forex trading"],
+    "drone_controller": ["drone", "fly quadcopter", "autopilot"],
+}
+
+
 class ToolMatcher(BaseToolMatcher):
     """Inspects agent description prompts and attaches optimal tools and MCP servers."""
 
@@ -30,6 +38,7 @@ class ToolMatcher(BaseToolMatcher):
         text = description_text.lower()
         matched_tools: List[str] = []
         consequential: List[str] = []
+        missing: List[str] = []
 
         for tool_id, keywords in TOOL_KEYWORDS.items():
             for kw in keywords:
@@ -38,6 +47,13 @@ class ToolMatcher(BaseToolMatcher):
                         matched_tools.append(tool_id)
                         if tool_id in CONSEQUENTIAL_TOOLS:
                             consequential.append(tool_id)
+                    break
+
+        for capability, keywords in UNSUPPORTED_CAPABILITY_KEYWORDS.items():
+            for kw in keywords:
+                if re.search(r"\b" + re.escape(kw) + r"\b", text):
+                    if capability not in missing:
+                        missing.append(capability)
                     break
 
         # If no specific match found, provide baseline read/search tools
@@ -54,4 +70,5 @@ class ToolMatcher(BaseToolMatcher):
             tool_ids=matched_tools,
             mcp_server_ids=mcp_servers,
             consequential_tools=consequential,
+            missing_tools=missing,
         )

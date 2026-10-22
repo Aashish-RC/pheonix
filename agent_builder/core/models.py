@@ -29,6 +29,7 @@ class AgentToolBinding(BaseModel):
     tool_ids: List[str] = Field(default_factory=list)
     mcp_server_ids: List[str] = Field(default_factory=list)
     consequential_tools: List[str] = Field(default_factory=list)
+    missing_tools: List[str] = Field(default_factory=list)
 
 
 class AgentRulesBinding(BaseModel):

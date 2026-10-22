@@ -209,3 +209,230 @@ def test_settings_synchronizer():
     sync.set_preference("font_size", 14)
     assert sync.get_preference("font_size") == 14
     assert sync.get_preference("missing_key", default=10) == 10
+
+
+def test_two_devices_write_same_key_concurrent_resolution():
+    """Verify concurrent writes to the same key from two devices resolve deterministically."""
+    resolver = ConflictResolver()
+
+    # Device A writes setting at clock 1, timestamp 100.0
+    entity_a = SyncEntity(
+        entity_id="pref_network_mode",
+        entity_type=EntityType.SETTINGS,
+        data={"mode": "wifi_only"},
+        lamport_clock=1,
+        updated_at=100.0,
+        node_id="device_a",
+    )
+
+    # Device B concurrently writes same setting at clock 1, timestamp 105.0
+    mut_b = DeltaMutation(
+        entity_id="pref_network_mode",
+        entity_type=EntityType.SETTINGS,
+        mutation_type=MutationType.UPDATE,
+        payload={"mode": "cellular_and_wifi"},
+        lamport_clock=1,
+        timestamp=105.0,
+        node_id="device_b",
+    )
+
+    resolved, conflict = resolver.resolve(entity_a, mut_b)
+    assert conflict is True
+    assert resolved.data["mode"] == "cellular_and_wifi"
+    assert resolved.node_id == "device_b"
+
+
+def test_two_devices_write_same_key_causal_lamport_clock():
+    """Verify that a higher Lamport clock dominates regardless of physical clock drift."""
+    resolver = ConflictResolver()
+
+    local_entity = SyncEntity(
+        entity_id="pref_volume",
+        entity_type=EntityType.SETTINGS,
+        data={"volume": 40},
+        lamport_clock=5,
+        updated_at=200.0,  # Physical clock higher
+        node_id="device_a",
+    )
+
+    incoming_mut = DeltaMutation(
+        entity_id="pref_volume",
+        entity_type=EntityType.SETTINGS,
+        mutation_type=MutationType.UPDATE,
+        payload={"volume": 90},
+        lamport_clock=6,   # Higher Lamport clock
+        timestamp=150.0,   # Physical clock drifted behind
+        node_id="device_b",
+    )
+
+    resolved, conflict = resolver.resolve(local_entity, incoming_mut)
+    assert conflict is False
+    assert resolved.data["volume"] == 90
+    assert resolved.lamport_clock == 6
+
+
+def test_offline_then_sync_two_way_reconciliation():
+    """Verify that two devices operating offline synchronize and converge to identical state."""
+    protocol = SyncProtocol()
+
+    # Store state on Device A and Device B
+    store_a: dict = {}
+    store_b: dict = {}
+
+    # Device A offline mutations
+    tracker_a = DeltaChangeTracker(node_id="dev_a")
+    mut_a1 = tracker_a.record_mutation("chat_1", EntityType.CHAT, MutationType.INSERT, {"title": "Chat from A"})
+    mut_a2 = tracker_a.record_mutation("settings_theme", EntityType.SETTINGS, MutationType.INSERT, {"theme": "nord"})
+
+    # Device B offline mutations
+    tracker_b = DeltaChangeTracker(node_id="dev_b")
+    mut_b1 = tracker_b.record_mutation("chat_2", EntityType.CHAT, MutationType.INSERT, {"title": "Chat from B"})
+
+    # Device A ingests its own mutations first
+    packet_a_local = protocol.create_packet("dev_a", "dev_a", [mut_a1, mut_a2])
+    protocol.ingest_packet(packet_a_local, store_a)
+
+    # Device B ingests its own mutations first
+    packet_b_local = protocol.create_packet("dev_b", "dev_b", [mut_b1])
+    protocol.ingest_packet(packet_b_local, store_b)
+
+    # Exchange packets: B ingests A's packet
+    packet_a_to_b = protocol.create_packet("dev_a", "dev_b", [mut_a1, mut_a2])
+    protocol.ingest_packet(packet_a_to_b, store_b)
+
+    # Exchange packets: A ingests B's packet
+    packet_b_to_a = protocol.create_packet("dev_b", "dev_a", [mut_b1])
+    protocol.ingest_packet(packet_b_to_a, store_a)
+
+    # Both stores now contain 3 entities with identical keys and data
+    assert len(store_a) == 3
+    assert len(store_b) == 3
+    assert set(store_a.keys()) == set(store_b.keys())
+    for k in store_a:
+        assert store_a[k].data == store_b[k].data
+        assert store_a[k].lamport_clock == store_b[k].lamport_clock
+
+
+def test_deletion_conflict_delete_wins_over_earlier_update():
+    """Verify that a deletion with a higher or equal clock marks an entity as deleted."""
+    resolver = ConflictResolver()
+
+    local_chat = SyncEntity(
+        entity_id="chat_conflicted",
+        entity_type=EntityType.CHAT,
+        data={"title": "Old Title"},
+        lamport_clock=1,
+        updated_at=100.0,
+        node_id="node_a",
+        deleted=False,
+    )
+
+    delete_mut = DeltaMutation(
+        entity_id="chat_conflicted",
+        entity_type=EntityType.CHAT,
+        mutation_type=MutationType.DELETE,
+        payload={},
+        lamport_clock=2,
+        timestamp=110.0,
+        node_id="node_b",
+    )
+
+    resolved, conflict = resolver.resolve(local_chat, delete_mut)
+    assert resolved.deleted is True
+    assert resolved.lamport_clock == 2
+
+
+def test_deletion_conflict_update_resurrects_deleted_entity():
+    """Verify that a subsequent update with higher clock un-deletes (resurrects) an entity."""
+    resolver = ConflictResolver()
+
+    deleted_entity = SyncEntity(
+        entity_id="fact_reborn",
+        entity_type=EntityType.MEMORY,
+        data={"fact": "Old fact"},
+        lamport_clock=2,
+        updated_at=100.0,
+        node_id="node_a",
+        deleted=True,
+    )
+
+    resurrection_mut = DeltaMutation(
+        entity_id="fact_reborn",
+        entity_type=EntityType.MEMORY,
+        mutation_type=MutationType.UPDATE,
+        payload={"fact": "Updated restored fact"},
+        lamport_clock=3,
+        timestamp=120.0,
+        node_id="node_b",
+    )
+
+    resolved, conflict = resolver.resolve(deleted_entity, resurrection_mut)
+    assert resolved.deleted is False
+    assert resolved.data["fact"] == "Updated restored fact"
+    assert resolved.lamport_clock == 3
+
+
+def test_partial_failure_corrupted_packet_rejected_atomically():
+    """Verify that a corrupted packet checksum raises ValueError and leaves the entity store pristine."""
+    protocol = SyncProtocol()
+    store = {"existing_key": SyncEntity(
+        entity_id="existing_key",
+        entity_type=EntityType.SETTINGS,
+        data={"val": 1},
+        lamport_clock=1,
+        updated_at=100.0,
+        node_id="node_1"
+    )}
+
+    mut = DeltaMutation(
+        entity_id="malicious_key",
+        entity_type=EntityType.SETTINGS,
+        mutation_type=MutationType.INSERT,
+        payload={"danger": True},
+        lamport_clock=1,
+        timestamp=150.0,
+        node_id="node_2",
+    )
+    packet = protocol.create_packet("node_2", "node_1", [mut])
+    # Tamper with the packet payload
+    packet.mutations[0].payload["danger"] = False
+
+    with pytest.raises(ValueError, match="checksum mismatch"):
+        protocol.ingest_packet(packet, store)
+
+    # Store was not altered
+    assert len(store) == 1
+    assert "malicious_key" not in store
+
+
+def test_batch_offline_mutations_across_multiple_entity_types():
+    """Verify batch sync containing CHAT, MEMORY, and SETTINGS deltas ingested in single pass."""
+    protocol = SyncProtocol()
+    tracker = DeltaChangeTracker(node_id="mobile_client")
+
+    m1 = tracker.record_mutation("chat_batch", EntityType.CHAT, MutationType.INSERT, {"msg": "hello"})
+    m2 = tracker.record_mutation("mem_batch", EntityType.MEMORY, MutationType.INSERT, {"summary": "user note"})
+    m3 = tracker.record_mutation("setting_batch", EntityType.SETTINGS, MutationType.INSERT, {"font": "sans"})
+
+    packet = protocol.create_packet("mobile_client", "server", [m1, m2, m3])
+    store: dict = {}
+    status = protocol.ingest_packet(packet, store)
+
+    assert status.applied_mutations == 3
+    assert len(store) == 3
+    assert store["chat_batch"].entity_type == EntityType.CHAT
+    assert store["mem_batch"].entity_type == EntityType.MEMORY
+    assert store["setting_batch"].entity_type == EntityType.SETTINGS
+
+
+def test_empty_packet_sync_leaves_store_unchanged():
+    """Verify syncing a packet with zero mutations succeeds as a no-op."""
+    protocol = SyncProtocol()
+    packet = protocol.create_packet("dev_1", "dev_2", [])
+    store: dict = {}
+    status = protocol.ingest_packet(packet, store)
+
+    assert status.applied_mutations == 0
+    assert status.synced_entities_count == 0
+    assert len(store) == 0
+

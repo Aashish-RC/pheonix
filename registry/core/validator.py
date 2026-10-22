@@ -64,6 +64,43 @@ class CompatibilityValidator:
                         )
                         affected.append(comp.name)
 
+        # 3. Circular Dependency Check: Ensure the dependency graph has no cycles
+        graph: Dict[str, List[str]] = {
+            candidate.name: [r.component_name for r in candidate.dependencies]
+        }
+        for name, comp in installed.items():
+            if name != candidate.name:
+                graph[name] = [r.component_name for r in comp.dependencies]
+
+        # Check self-dependency
+        if candidate.name in graph[candidate.name]:
+            reasons.append(f"Blocked: Component '{candidate.name}' cannot depend on itself (circular dependency).")
+            affected.append(candidate.name)
+        else:
+            # Check transitive cycles starting from candidate
+            visited = set()
+            rec_stack: List[str] = []
+
+            def find_cycle(curr: str) -> Optional[List[str]]:
+                visited.add(curr)
+                rec_stack.append(curr)
+                for neighbor in graph.get(curr, []):
+                    if neighbor not in visited:
+                        res = find_cycle(neighbor)
+                        if res:
+                            return res
+                    elif neighbor in rec_stack:
+                        idx = rec_stack.index(neighbor)
+                        return rec_stack[idx:] + [neighbor]
+                rec_stack.pop()
+                return None
+
+            cycle = find_cycle(candidate.name)
+            if cycle:
+                cycle_str = " -> ".join(cycle)
+                reasons.append(f"Blocked: Circular dependency detected: {cycle_str}.")
+                affected.extend(cycle)
+
         is_compatible = len(reasons) == 0
         return ValidationResult(
             is_compatible=is_compatible,

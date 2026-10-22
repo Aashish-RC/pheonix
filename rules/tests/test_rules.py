@@ -307,3 +307,249 @@ def test_rule_version_rollback():
     assert "Transfers blocked in v1" in res.reason
 
     client.close()
+
+
+def test_rule_version_multi_step_rollback():
+    """Verify rolling back across multiple successive rule versions (v1 -> v2 -> v3 -> v2 -> v1)."""
+    engine = RulesEngine()
+    rule = RuleDefinition(
+        rule_id="multi_rollback_rule",
+        name="Multi Rollback",
+        scope=RuleScope.GLOBAL,
+        conditions=[RuleCondition(field="op", operator="==", value="write")],
+        action=RuleAction.BLOCK,
+        message="v1 message",
+        version=1,
+    )
+    engine.add_rule(rule)
+
+    # v2
+    rule_v2 = rule.model_copy()
+    rule_v2.message = "v2 message"
+    engine.update_rule(rule_v2)
+
+    # v3
+    rule_v3 = rule_v2.model_copy()
+    rule_v3.message = "v3 message"
+    engine.update_rule(rule_v3)
+
+    assert engine.get_rule("multi_rollback_rule").message == "v3 message"
+
+    # Rollback to v2
+    rb2 = engine.rollback_rule("multi_rollback_rule", target_version=2)
+    assert rb2 is not None
+    assert rb2.message == "v2 message"
+    assert engine.get_rule("multi_rollback_rule").message == "v2 message"
+
+    # Rollback to v1
+    rb1 = engine.rollback_rule("multi_rollback_rule", target_version=1)
+    assert rb1 is not None
+    assert rb1.message == "v1 message"
+    assert engine.get_rule("multi_rollback_rule").message == "v1 message"
+
+
+def test_rule_rollback_nonexistent_rule_returns_none():
+    """Verify attempting to rollback an unknown rule returns None safely."""
+    engine = RulesEngine()
+    assert engine.rollback_rule("unknown_rule_xyz", target_version=1) is None
+
+
+def test_rule_rollback_invalid_version_returns_none():
+    """Verify attempting to rollback to a non-existent version returns None."""
+    engine = RulesEngine()
+    rule = RuleDefinition(
+        rule_id="single_version_rule",
+        name="Single Version",
+        scope=RuleScope.GLOBAL,
+        conditions=[],
+        action=RuleAction.ALLOW,
+    )
+    engine.add_rule(rule)
+    assert engine.rollback_rule("single_version_rule", target_version=99) is None
+
+
+def test_rule_rollback_broadcasts_to_active_consumers():
+    """Verify rollback triggers an UPDATED event broadcast received by running consumers."""
+    engine = RulesEngine()
+    client = RulesClient(app_name="consumer_node_1", engine=engine)
+
+    rule = RuleDefinition(
+        rule_id="broadcast_rb_rule",
+        name="Broadcast RB",
+        scope=RuleScope.GLOBAL,
+        conditions=[RuleCondition(field="tier", operator="==", value="free")],
+        action=RuleAction.BLOCK,
+    )
+    engine.add_rule(rule)
+    assert client.evaluate({"tier": "free"}).allowed is False
+
+    rule_update = rule.model_copy()
+    rule_update.action = RuleAction.ALLOW
+    engine.update_rule(rule_update)
+    assert client.evaluate({"tier": "free"}).allowed is True
+
+    # Rollback to version 1
+    rolled_back = engine.rollback_rule("broadcast_rb_rule", target_version=1)
+    assert rolled_back is not None
+
+    # Running consumer immediately reflects rolled back BLOCK action
+    assert client.evaluate({"tier": "free"}).allowed is False
+    assert client._local_rules["broadcast_rb_rule"].action == RuleAction.BLOCK
+    client.close()
+
+
+def test_conflicting_rules_priority_order_execution():
+    """Verify that when multiple conflicting rules match, the lowest priority number wins."""
+    engine = RulesEngine()
+
+    rule_low_prio = RuleDefinition(
+        rule_id="rule_priority_100",
+        name="Allow write (low priority)",
+        scope=RuleScope.GLOBAL,
+        conditions=[RuleCondition(field="target", operator="==", value="db")],
+        action=RuleAction.ALLOW,
+        priority=100,
+    )
+    rule_high_prio = RuleDefinition(
+        rule_id="rule_priority_10",
+        name="Block write (high priority)",
+        scope=RuleScope.GLOBAL,
+        conditions=[RuleCondition(field="target", operator="==", value="db")],
+        action=RuleAction.BLOCK,
+        priority=10,
+    )
+
+    engine.add_rule(rule_low_prio)
+    engine.add_rule(rule_high_prio)
+
+    res = engine.evaluate(RuleScope.GLOBAL, {"target": "db"})
+    assert res.allowed is False
+    assert res.action == RuleAction.BLOCK
+    assert res.matched_rule.rule_id == "rule_priority_10"
+
+
+def test_conflicting_rules_scope_hierarchy_application():
+    """Verify rule evaluation filters appropriately for target scope versus global scope."""
+    engine = RulesEngine()
+
+    global_rule = RuleDefinition(
+        rule_id="rule_global_allow",
+        name="Global rule",
+        scope=RuleScope.GLOBAL,
+        conditions=[RuleCondition(field="action", operator="==", value="read")],
+        action=RuleAction.ALLOW,
+        priority=50,
+    )
+    agent_rule = RuleDefinition(
+        rule_id="rule_agent_block",
+        name="Agent-specific rule",
+        scope=RuleScope.AGENT,
+        conditions=[RuleCondition(field="action", operator="==", value="read")],
+        action=RuleAction.BLOCK,
+        priority=20,
+    )
+
+    engine.add_rule(global_rule)
+    engine.add_rule(agent_rule)
+
+    # Evaluating under AGENT scope: both apply, agent rule has higher priority (20 < 50) -> BLOCK
+    res_agent = engine.evaluate(RuleScope.AGENT, {"action": "read"})
+    assert res_agent.allowed is False
+
+    # Evaluating under GATEWAY scope: agent rule is excluded, global rule applies -> ALLOW
+    res_gateway = engine.evaluate(RuleScope.GATEWAY, {"action": "read"})
+    assert res_gateway.allowed is True
+
+
+def test_propagation_to_multiple_running_consumers():
+    """Verify a single rule addition propagates in real-time to all running consumer clients."""
+    engine = RulesEngine()
+
+    clients = [RulesClient(app_name=f"app_{i}", engine=engine) for i in range(5)]
+
+    new_rule = RuleDefinition(
+        rule_id="fanout_rule",
+        name="Fanout Rule",
+        scope=RuleScope.GLOBAL,
+        conditions=[RuleCondition(field="cmd", operator="==", value="ping")],
+        action=RuleAction.ALLOW,
+    )
+    engine.add_rule(new_rule)
+
+    # All 5 clients must immediately have the rule in their local in-memory cache
+    for c in clients:
+        assert "fanout_rule" in c._local_rules
+        assert c._local_rules["fanout_rule"].action == RuleAction.ALLOW
+        c.close()
+
+
+def test_propagation_unsubscribed_consumer_stops_receiving():
+    """Verify that an unsubscribed consumer client stops receiving subsequent rule events."""
+    engine = RulesEngine()
+
+    client = RulesClient(app_name="transient_client", engine=engine)
+
+    rule1 = RuleDefinition(rule_id="rule_1", name="Rule 1", scope=RuleScope.GLOBAL, conditions=[], action=RuleAction.ALLOW)
+    engine.add_rule(rule1)
+    assert "rule_1" in client._local_rules
+
+    # Unsubscribe
+    client.close()
+
+    rule2 = RuleDefinition(rule_id="rule_2", name="Rule 2", scope=RuleScope.GLOBAL, conditions=[], action=RuleAction.ALLOW)
+    engine.add_rule(rule2)
+    # Local cache remains untouched for unsubscribed client
+    assert "rule_2" not in client._local_rules
+
+
+def test_propagation_resilient_to_individual_consumer_exception():
+    """Verify that a misbehaving consumer raising an exception does not prevent other consumers from receiving updates."""
+    engine = RulesEngine()
+
+    healthy_events = []
+
+    def faulty_callback(evt):
+        raise RuntimeError("Crash in consumer callback")
+
+    def healthy_callback(evt):
+        healthy_events.append(evt)
+
+    engine.dispatcher.subscribe("faulty_sub", faulty_callback)
+    engine.dispatcher.subscribe("healthy_sub", healthy_callback)
+
+    rule = RuleDefinition(rule_id="resilience_rule", name="Resilience Test", scope=RuleScope.GLOBAL, conditions=[], action=RuleAction.ALLOW)
+    engine.add_rule(rule)
+
+    # Healthy subscriber should have received event despite faulty subscriber crashing
+    assert len(healthy_events) == 1
+    assert healthy_events[0].rule.rule_id == "resilience_rule"
+
+
+def test_rule_toggle_broadcasts_and_updates_consumer_evaluation():
+    """Verify toggling a rule on/off broadcasts TOGGLED event and immediately affects evaluation."""
+    engine = RulesEngine()
+    client = RulesClient(app_name="toggle_listener", engine=engine)
+
+    rule = RuleDefinition(
+        rule_id="toggle_rule",
+        name="Toggle Rule",
+        scope=RuleScope.GLOBAL,
+        conditions=[RuleCondition(field="access", operator="==", value="admin")],
+        action=RuleAction.BLOCK,
+        enabled=True,
+    )
+    engine.add_rule(rule)
+
+    ctx = {"access": "admin"}
+    assert client.evaluate(ctx).allowed is False
+
+    # Toggle off
+    engine.toggle_rule("toggle_rule", enabled=False)
+    assert client.evaluate(ctx).allowed is True
+
+    # Toggle back on
+    engine.toggle_rule("toggle_rule", enabled=True)
+    assert client.evaluate(ctx).allowed is False
+    client.close()
+
+

@@ -81,10 +81,34 @@ class DescribeToAgentCompiler(BaseDescribeToAgentCompiler):
         notes: List[str] = []
         validation_errors: List[str] = []
 
-        if not request.prompt or len(request.prompt.strip()) < 5:
+        prompt_clean = request.prompt.strip()
+        if not prompt_clean or len(prompt_clean) < 5:
             return AgentBuildResult(
                 success=False,
                 validation_errors=["Agent description prompt must be at least 5 characters long."],
+            )
+
+        # Ambiguous request check: prompt lacks actionable domain or directives
+        words = prompt_clean.split()
+        if len(words) <= 2 and not request.target_domain and prompt_clean.lower() in ("do stuff", "help me", "an agent", "make something", "do it"):
+            return AgentBuildResult(
+                success=False,
+                validation_errors=["Ambiguous request: prompt lacks actionable directives or domain specification."],
+            )
+
+        # Rule violation check: requests to bypass safety or exfiltrate secrets
+        prohibited_phrases = (
+            "extract all passwords",
+            "exfiltrate secrets",
+            "bypass sandbox",
+            "disable security rules",
+            "leak api keys",
+            "steal credentials",
+        )
+        if any(p in prompt_clean.lower() for p in prohibited_phrases):
+            return AgentBuildResult(
+                success=False,
+                validation_errors=["Request violates system safety policy: prohibited action or secret extraction requested."],
             )
 
         # 1. Synthesize Persona & Name
@@ -98,6 +122,8 @@ class DescribeToAgentCompiler(BaseDescribeToAgentCompiler):
         # 3. Match Tools
         tool_binding = self.tool_matcher.match_tools(request.prompt)
         notes.append(f"Bound {len(tool_binding.tool_ids)} tools ({', '.join(tool_binding.tool_ids)}).")
+        if tool_binding.missing_tools:
+            notes.append(f"Identified missing tools for requested capabilities: {', '.join(tool_binding.missing_tools)}.")
 
         # 4. Bind Rules & Permissions
         rules_binding = self.rules_binder.bind_rules(
