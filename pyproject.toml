@@ -66,6 +66,9 @@ exclude = ["tests*", "model-gateway*"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 python_files = "test_*.py"
+markers = [
+    "live: marks tests as requiring live infrastructure (run with -m live)",
+]
 
 [tool.ruff]
 line-length = 100

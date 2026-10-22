@@ -182,6 +182,39 @@ router.registerRoute({
   ]
 });
 
+// Local Ollama direct aliases
+router.registerRoute({
+  alias: 'llama3.2:1b',
+  targets: [
+    {
+      id: 'ollama-llama32-1b',
+      provider: 'ollama',
+      model: 'llama3.2:1b',
+      config: {
+        id: 'ollama-cfg',
+        name: 'Local Ollama Llama 3.2 1B',
+        baseUrl: process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434'
+      }
+    }
+  ]
+});
+
+router.registerRoute({
+  alias: 'ollama',
+  targets: [
+    {
+      id: 'ollama-default',
+      provider: 'ollama',
+      model: 'llama3.2:1b',
+      config: {
+        id: 'ollama-cfg',
+        name: 'Local Ollama',
+        baseUrl: process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434'
+      }
+    }
+  ]
+});
+
 export { app, router, engine };
 
 const PORT = parseInt(process.env.PORT || '4000', 10);

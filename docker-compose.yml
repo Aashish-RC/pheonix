@@ -58,6 +58,22 @@ services:
       - "1025:1025" # SMTP port
       - "8025:8025" # Web UI
 
+  # High-Performance Model Gateway Service
+  model-gateway:
+    build:
+      context: ./model-gateway
+      dockerfile: Dockerfile
+    container_name: pheonix-model-gateway
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - NODE_ENV=development
+      - OLLAMA_BASE_URL=http://ollama:11434
+    depends_on:
+      - ollama
+
 volumes:
   qdrant_data:
   ollama_models:
