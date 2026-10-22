@@ -11,22 +11,22 @@
 ## Track 1 — Inter-Module Wiring (Most Critical)
 *Nothing runs end-to-end until these are done.*
 
-| # | Task | Files to create/edit | Done when |
-|---|---|---|---|
-| **W1** | Create root `.env.example` listing every env var needed across all modules (API keys, DB URLs, ports, vector store endpoints) | `/.env.example` | `grep -r "os.environ\|os.getenv" .` has no surprise vars |
-| **W2** | Create root `requirements.txt` (or `uv` workspace `pyproject.toml`) that pulls in all module dependencies in one `pip install` | `/pyproject.toml` or `/requirements.txt` | `pip install -e ".[all]"` succeeds from repo root |
-| **W3** | Wire **auth → vault**: auth session token creation must call vault's key-lease API to store session signing key | `auth/core/session.py` → `vault/` API call | Auth tests pass with vault as the backend key store |
-| **W4** | Wire **providers → gateway**: provider activation result (ping status, key lease) must be fed into gateway's capability matrix | `providers/` → `model-gateway/src/routing/capability-matrix.ts` | Activating a provider key makes it selectable in gateway Auto mode |
-| **W5** | Wire **gateway → memory**: after every response, gateway must push a memory-write event to the memory engine (conversation record) | `model-gateway/src/telemetry/` → `memory/core/` | After a chat turn, memory stores the exchange retrievably |
-| **W6** | Wire **orchestrator → sandboxes**: orchestrator's code-execution step must call the sandbox module's execution API | `orchestrator/engine/dag_runner.py` → `sandboxes/` | A multi-step plan that includes a code step runs it in isolation |
-| **W7** | Wire **orchestrator → tools_mcp**: orchestrator tool-call steps must route through the MCP registry's dispatch layer | `orchestrator/` → `tools_mcp/` | An orchestrator plan can call a registered MCP tool |
-| **W8** | Wire **guardrails → gateway**: every inbound prompt to the gateway must pass through the guardrails client before dispatch | `model-gateway/src/guardrails/` → Python guardrails client (HTTP or embedded) | A known jailbreak prompt is blocked at the gateway layer |
-| **W9** | Wire **guardrails → memory**: memory writes of user input must be checked by guardrails before storing | `memory/core/engine.py` → `guardrails/client.py` | PII in a stored memory is redacted, not stored raw |
-| **W10** | Wire **observability → all modules**: each module must emit structured events (latency, errors, cost) to the observability collector | Add `observability` client calls to gateway, memory, orchestrator, agent, serving | Grafana/Langfuse dashboard shows per-module traces |
-| **W11** | Wire **recommender → gateway**: gateway's Auto model selection must call the recommender's scoring API | `model-gateway/src/routing/auto-selector.ts` → recommender HTTP endpoint | Auto mode picks the model the recommender scores highest |
-| **W12** | Wire **resource_optimizer → orchestrator**: orchestrator must check the optimizer before launching parallel steps | `orchestrator/engine/dag_runner.py` → resource optimizer | A burst of 10 parallel steps is throttled to the optimizer's cap |
-| **W13** | Wire **notifications → orchestrator**: when an orchestrator task finishes or needs approval, it fires a notification event | `orchestrator/` → `notifications/` | A finished long-running task shows in the notification inbox |
-| **W14** | Write the first **end-to-end integration test** that chains the full path: `.env` loaded → auth login → key stored in vault → provider activated → gateway routes a real call → memory stores the turn → orchestrator runs a 2-step plan | `/tests/integration/test_e2e_core.py` | Test passes green against a real Ollama instance |
+| # | Status | Task | Files to create/edit | Done when |
+|---|:---:|---|---|---|
+| **W1** | [x] | Create root `.env.example` listing every env var needed across all modules (API keys, DB URLs, ports, vector store endpoints) | `/.env.example` | `grep -r "os.environ\|os.getenv" .` has no surprise vars |
+| **W2** | [x] | Create root `requirements.txt` (or `uv` workspace `pyproject.toml`) that pulls in all module dependencies in one `pip install` | `/pyproject.toml` or `/requirements.txt` | `pip install -e ".[all]"` succeeds from repo root |
+| **W3** | [x] | Wire **auth → vault**: auth session token creation must call vault's key-lease API to store session signing key | `auth/core/session.py` → `vault/` API call | Auth tests pass with vault as the backend key store |
+| **W4** | [x] | Wire **providers → gateway**: provider activation result (ping status, key lease) must be fed into gateway's capability matrix | `providers/` → `model-gateway/src/routing/capability-matrix.ts` | Activating a provider key makes it selectable in gateway Auto mode |
+| **W5** | [x] | Wire **gateway → memory**: after every response, gateway must push a memory-write event to the memory engine (conversation record) | `model-gateway/src/telemetry/` → `memory/core/` | After a chat turn, memory stores the exchange retrievably |
+| **W6** | [~] | Wire **orchestrator → sandboxes**: orchestrator's code-execution step must call the sandbox module's execution API | `orchestrator/engine/dag_runner.py` → `sandboxes/` | A multi-step plan that includes a code step runs it in isolation |
+| **W7** | [x] | Wire **orchestrator → tools_mcp**: orchestrator tool-call steps must route through the MCP registry's dispatch layer | `orchestrator/` → `tools_mcp/` | An orchestrator plan can call a registered MCP tool |
+| **W8** | [x] | Wire **guardrails → gateway**: every inbound prompt to the gateway must pass through the guardrails client before dispatch | `model-gateway/src/guardrails/` → Python guardrails client (HTTP or embedded) | A known jailbreak prompt is blocked at the gateway layer |
+| **W9** | [x] | Wire **guardrails → memory**: memory writes of user input must be checked by guardrails before storing | `memory/core/engine.py` → `guardrails/client.py` | PII in a stored memory is redacted, not stored raw |
+| **W10** | [~] | Wire **observability → all modules**: each module must emit structured events (latency, errors, cost) to the observability collector | Add `observability` client calls to gateway, memory, orchestrator, agent, serving | Grafana/Langfuse dashboard shows per-module traces |
+| **W11** | [x] | Wire **recommender → gateway**: gateway's Auto model selection must call the recommender's scoring API | `model-gateway/src/routing/auto-selector.ts` → recommender HTTP endpoint | Auto mode picks the model the recommender scores highest |
+| **W12** | [x] | Wire **resource_optimizer → orchestrator**: orchestrator must check the optimizer before launching parallel steps | `orchestrator/engine/dag_runner.py` → resource optimizer | A burst of 10 parallel steps is throttled to the optimizer's cap |
+| **W13** | [x] | Wire **notifications → orchestrator**: when an orchestrator task finishes or needs approval, it fires a notification event | `orchestrator/` → `notifications/` | A finished long-running task shows in the notification inbox |
+| **W14** | [x] | Write the first **end-to-end integration test** that chains the full path: `.env` loaded → auth login → key stored in vault → provider activated → gateway routes a real call → memory stores the turn → orchestrator runs a 2-step plan | `/tests/integration/test_e2e_core.py` | Test passes green against a real Ollama instance |
 
 ---
 
@@ -49,17 +49,17 @@
 ## Track 3 — OSS Engine Integration
 *Modules reference OSS tools but don't instantiate them. These make the unified layers real.*
 
-| # | Task | Files to create/edit | Done when |
-|---|---|---|---|
-| **O1** | **Memory / Vector store — Qdrant**: wire `memory/embeddings/qdrant_adapter.py` to a real Qdrant instance; add connection health check on startup | `memory/embeddings/qdrant_adapter.py` | `pytest memory/tests/test_engine.py -k qdrant` passes against a local Qdrant container |
-| **O2** | **Model serving — Ollama**: wire `serving/` to a running Ollama instance; expose a `/generate` endpoint that proxies to Ollama with device-profile checks | `serving/core/` | `curl` to serving's `/generate` returns a streamed response from `llama3.2` |
-| **O3** | **Web search — Firecrawl**: wire `web_search/core/` to Firecrawl's `/scrape` and `/search` APIs; add a fallback to Crawl4AI if Firecrawl key is absent | `web_search/core/provider.py` | A query returns cited results from at least one provider |
-| **O4** | **Sandboxes — E2B**: wire `sandboxes/` to E2B's sandbox API; the execute endpoint must time-box and kill on timeout | `sandboxes/core/` | Running `print(2+2)` in the sandbox returns `4` without escaping the container |
-| **O5** | **Browser automation — Browser Use**: wire `browser_automation/` to Browser Use's agent API; add confirmation-required mode for consequential actions (form submit, click "Buy") | `browser_automation/core/` | A browse-to-URL task executes and returns page content; a form-submit asks for approval |
-| **O6** | **Notifications — Novu**: wire `notifications/` to Novu's API or run Novu self-hosted; add an in-app inbox channel and an email fallback | `notifications/core/` | A `notify(user_id, "Task done")` call results in a real inbox entry |
-| **O7** | **Observability — Langfuse**: wire `observability/` to Langfuse's `/api/public/ingestion` endpoint; emit a trace on every gateway call | `observability/core/tracer.py` | Langfuse UI shows a trace with model, latency, cost, and token counts |
-| **O8** | **Search — Typesense/Meilisearch**: wire `search/` to a running Typesense instance; index conversation history and notes | `search/core/` | A search query returns ranked results from indexed conversations |
-| **O9** | **Remote access — Tailscale/WireGuard**: wire `remote_access/` to generate a WireGuard config or Tailscale auth key for device pairing | `remote_access/core/` | Two Docker containers pair and exchange encrypted traffic through the relay path |
+| # | Status | Task | Files to create/edit | Done when |
+|---|:---:|---|---|---|
+| **O1** | [~] | **Memory / Vector store — Qdrant**: wire `memory/embeddings/qdrant_adapter.py` to a real Qdrant instance; add connection health check on startup | `memory/embeddings/qdrant_adapter.py` | `pytest memory/tests/test_engine.py -k qdrant` passes against a local Qdrant container |
+| **O2** | [~] | **Model serving — Ollama**: wire `serving/` to a running Ollama instance; expose a `/generate` endpoint that proxies to Ollama with device-profile checks | `serving/core/` | `curl` to serving's `/generate` returns a streamed response from `llama3.2` |
+| **O3** | [~] | **Web search — Firecrawl**: wire `web_search/core/` to Firecrawl's `/scrape` and `/search` APIs; add a fallback to Crawl4AI if Firecrawl key is absent | `web_search/core/provider.py` | A query returns cited results from at least one provider |
+| **O4** | [~] | **Sandboxes — E2B**: wire `sandboxes/` to E2B's sandbox API; the execute endpoint must time-box and kill on timeout | `sandboxes/core/` | Running `print(2+2)` in the sandbox returns `4` without escaping the container |
+| **O5** | [~] | **Browser automation — Browser Use**: wire `browser_automation/` to Browser Use's agent API; add confirmation-required mode for consequential actions (form submit, click "Buy") | `browser_automation/core/` | A browse-to-URL task executes and returns page content; a form-submit asks for approval |
+| **O6** | [~] | **Notifications — Novu**: wire `notifications/` to Novu's API or run Novu self-hosted; add an in-app inbox channel and an email fallback | `notifications/core/` | A `notify(user_id, "Task done")` call results in a real inbox entry |
+| **O7** | [~] | **Observability — Langfuse**: wire `observability/` to Langfuse's `/api/public/ingestion` endpoint; emit a trace on every gateway call | `observability/core/tracer.py` | Langfuse UI shows a trace with model, latency, cost, and token counts |
+| **O8** | [~] | **Search — Typesense/Meilisearch**: wire `search/` to a running Typesense instance; index conversation history and notes | `search/core/` | A search query returns ranked results from indexed conversations |
+| **O9** | [~] | **Remote access — Tailscale/WireGuard**: wire `remote_access/` to generate a WireGuard config or Tailscale auth key for device pairing | `remote_access/core/` | Two Docker containers pair and exchange encrypted traffic through the relay path |
 
 ---
 
@@ -101,13 +101,13 @@
 
 ## Track 6 — Voice & Media Completion (Wave 8 thin modules)
 
-| # | Task | Files | Done when |
-|---|---|---|---|
-| **V1** | Wire `voice_speech/stt/dictation_engine.py` to a real Whisper endpoint (local via `faster-whisper` or OpenAI Whisper API) | `voice_speech/stt/` | An audio file uploaded returns a transcript |
-| **V2** | Wire `voice_speech/tts/synthesis_engine.py` to a TTS provider (OpenAI TTS or Coqui XTTS locally) | `voice_speech/tts/` | A text string returns playable audio bytes |
-| **V3** | Wire `voice_speech/core/duplex/` to LiveKit's Python SDK for real-time full-duplex voice | `voice_speech/core/duplex/` | Two clients can hold a voice conversation via the LiveKit room |
-| **V4** | Wire `media_gen/` image route to a real provider (Stability AI via gateway, or a local ComfyUI endpoint) — include safety filter before returning | `media_gen/core/` | An image prompt returns a base64 image that passes the safety filter |
-| **V5** | Wire `translation/` to LibreTranslate self-hosted (fallback: gateway call to a model with a translation system prompt) | `translation/core/` | A Spanish string is translated to English without a paid API key |
+| # | Status | Task | Files | Done when |
+|---|:---:|---|---|---|
+| **V1** | [~] | Wire `voice_speech/stt/dictation_engine.py` to a real Whisper endpoint (local via `faster-whisper` or OpenAI Whisper API) | `voice_speech/stt/` | An audio file uploaded returns a transcript |
+| **V2** | [~] | Wire `voice_speech/tts/synthesis_engine.py` to a TTS provider (OpenAI TTS or Coqui XTTS locally) | `voice_speech/tts/` | A text string returns playable audio bytes |
+| **V3** | [~] | Wire `voice_speech/core/duplex/` to LiveKit's Python SDK for real-time full-duplex voice | `voice_speech/core/duplex/` | Two clients can hold a voice conversation via the LiveKit room |
+| **V4** | [~] | Wire `media_gen/` image route to a real provider (Stability AI via gateway, or a local ComfyUI endpoint) — include safety filter before returning | `media_gen/core/` | An image prompt returns a base64 image that passes the safety filter |
+| **V5** | [~] | Wire `translation/` to LibreTranslate self-hosted (fallback: gateway call to a model with a translation system prompt) | `translation/core/` | A Spanish string is translated to English without a paid API key |
 
 ---
 

@@ -78,7 +78,7 @@
 
 ## Track 3: Real Open-Source Engine Adapters
 
-- [x] **Task 3.1: Firecrawl & Crawl4AI Real Scraper Adapter**
+- [~] **Task 3.1: Firecrawl & Crawl4AI Real Scraper Adapter**
   - **Target:** `web_search/core/provider.py`, `web_search/pyproject.toml`
   - **Action:**
     - Implement `FirecrawlClient` connecting to `https://api.firecrawl.dev` (or self-hosted) using `FIRECRAWL_API_KEY`.
@@ -86,7 +86,7 @@
     - Extract clean Markdown and synthesize source citation metadata (`url`, `title`, `snippet`).
   - **Done When:** Executing `web_search.search("python latest release")` returns parsed web content and populated citations.
 
-- [x] **Task 3.2: E2B Cloud & Docker Local Sandbox Execution**
+- [~] **Task 3.2: E2B Cloud & Docker Local Sandbox Execution**
   - **Target:** `sandboxes/core/`, `sandboxes/manager.py`
   - **Action:**
     - Implement `E2BExecutionEngine` using `e2b-code-interpreter`.
@@ -94,21 +94,21 @@
     - Enforce execution timeout via `SANDBOX_TIMEOUT_SECONDS` (default: 30s) and memory caps (512MB).
   - **Done When:** Running a script that attempts `while True: pass` is killed after 30 seconds with `SandboxTimeoutError`, while valid code returns `stdout`.
 
-- [x] **Task 3.3: Browser Use Automation Adapter**
+- [~] **Task 3.3: Browser Use Automation Adapter**
   - **Target:** `browser_automation/core/agent.py`
   - **Action:**
     - Integrate `browser-use` library controlling headless Playwright Chromium.
     - Add security interceptor callback: pause and yield confirmation request if DOM action matches buttons like `Submit`, `Delete`, `Pay`, `Confirm`.
   - **Done When:** Browser agent can open a page, extract text, and pauses execution waiting for approval when encountering an input form submission.
 
-- [x] **Task 3.4: Novu In-App & Multi-Channel Notification Integration**
+- [~] **Task 3.4: Novu In-App & Multi-Channel Notification Integration**
   - **Target:** `notifications/core/dispatcher.py`
   - **Action:**
     - Wire `NovuBackend` to trigger events via `@novu/node` or Novu REST API (`POST /v1/events/trigger`).
     - Add local mock inbox repository for running without external Novu cloud dependency.
   - **Done When:** Calling `notify(user_id="u1", event="task_completed")` writes to the user's notification feed.
 
-- [x] **Task 3.5: Langfuse Observability Exporter**
+- [~] **Task 3.5: Langfuse Observability Exporter**
   - **Target:** `observability/core/tracer.py`
   - **Action:**
     - Implement `LangfuseExporter` connecting via `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY`.
@@ -116,7 +116,7 @@
     - Ensure background async flush so model generation is never blocked by telemetry timeouts.
   - **Done When:** Running `test_e2e_core.py` successfully sends trace batches to the Langfuse mock/endpoint without latency penalty.
 
-- [x] **Task 3.6: Meilisearch Global Search Indexer**
+- [~] **Task 3.6: Meilisearch Global Search Indexer**
   - **Target:** `search/core/index.py`, `search/core/ingestion.py`
   - **Action:**
     - Wire client to `MEILISEARCH_URL` using `MEILISEARCH_MASTER_KEY`.
@@ -124,7 +124,7 @@
     - Subscribe to memory write events to update index documents in real time.
   - **Done When:** Adding a conversation turn makes it queryable via `search.query("needle")` within 500ms.
 
-- [x] **Task 3.7: WireGuard & Relay Path Selection in Remote Access**
+- [~] **Task 3.7: WireGuard & Relay Path Selection in Remote Access**
   - **Target:** `remote_access/core/pairing.py`, `remote_access/core/relay.py`
   - **Action:**
     - Implement cryptographic key-exchange handshake generating client WireGuard configuration files.
@@ -191,27 +191,27 @@
 
 ## Track 6: Wave 8 Capabilities (Voice & Media Engines)
 
-- [x] **Task 6.1: Faster-Whisper Local STT Adapter**
+- [~] **Task 6.1: Faster-Whisper Local STT Adapter**
   - **Target:** `voice_speech/stt/dictation_engine.py`
   - **Action:** Integrate `faster-whisper` for local CPU/GPU speech-to-text with auto-punctuation and timestamp extraction.
   - **Done When:** Sending a 5-second `.wav` file yields matching transcript text.
 
-- [x] **Task 6.2: TTS Audio Synthesis Engine**
+- [~] **Task 6.2: TTS Audio Synthesis Engine**
   - **Target:** `voice_speech/tts/synthesis_engine.py`
   - **Action:** Integrate Coqui TTS / OpenAI TTS client returning streaming audio chunks (`audio/wav`, `audio/mp3`).
   - **Done When:** Calling `synthesize("Hello world")` produces non-empty audio byte buffer.
 
-- [x] **Task 6.3: LiveKit Real-Time Full-Duplex Voice Session**
+- [~] **Task 6.3: LiveKit Real-Time Full-Duplex Voice Session**
   - **Target:** `voice_speech/duplex/voice_session_runner.py`
   - **Action:** Integrate LiveKit Python RTC client to connect to voice rooms with VAD (Voice Activity Detection) and barge-in cancellation.
   - **Done When:** Incoming microphone audio automatically silences ongoing bot TTS playback.
 
-- [x] **Task 6.4: Image Route Safety & Generation Pipe**
+- [~] **Task 6.4: Image Route Safety & Generation Pipe**
   - **Target:** `media_gen/core/image_route.py`
   - **Action:** Connect to Stability AI / local ComfyUI API and wrap generation through `guardrails.core.output_guard`.
   - **Done When:** Generating a prompt produces an image; prompt containing forbidden content returns safety error.
 
-- [x] **Task 6.5: Offline Machine Translation Adapter**
+- [~] **Task 6.5: Offline Machine Translation Adapter**
   - **Target:** `translation/core/engine.py`
   - **Action:** Add adapter for local LibreTranslate container with automatic language detection and caching.
   - **Done When:** `translate("Bonjour", target="en")` returns `"Hello"`.

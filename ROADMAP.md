@@ -84,94 +84,95 @@ An inspection of the workspace reveals three existing directories:
 *Goal: Ensure keys are stored safely and all components are formally versioned and verifiable.*
 
 | Step | Component | Opt | Needs First | Build First | Done When (Verification Gate) | Status |
-|---|---|---|---|---|---|---|
-| **1** | **Repo, CI, Test Harness, Threat Model & Data Rules** | Opt 1 | Nothing | Unified workspace harness, CI scripts, key-store threat model, and data handling rules. | Fresh clone builds in one command (`pnpm/python run all:test`), data rules documented and approved. | ⏳ Pending Acceptance |
-| **2** | **Key Store and Secrets** | Opt 1 | Step 1 | Per-user encrypted key vault (AES-GCM/Argon2id), secure memory wiping, key rotation & revocation engine. | Keys never appear in plaintext anywhere in logs, traces, or disk. | ⏳ Queued |
-| **3** | **Auth and Identity** | Opt 1 | Step 2 | Single-user local sign-in, cryptographic session management, device signature binding. | You can sign in locally, inspect active sessions and registered device keys. | ⏳ Queued |
-| **4** | **Component Registry v0** | Opt 2 | Step 1 | Version manifest schema, changelog generator, semantic compatibility rules engine. | An incompatible or corrupt update is blocked with an explicit diagnostic reason. | ⏳ Queued |
+|:---:|---|---|---|---|---|:---:|
+| **1** | **Repo, CI, Test Harness, Threat Model & Data Rules** | Opt 1 | Nothing | Unified workspace harness, CI scripts, key-store threat model, and data handling rules. | Fresh clone builds in one command (`pnpm/python run all:test`), data rules documented and approved. | **REAL** |
+| **2** | **Key Store and Secrets** | Opt 1 | Step 1 | Per-user encrypted key vault (AES-GCM/Argon2id), secure memory wiping, key rotation & revocation engine. | Keys never appear in plaintext anywhere in logs, traces, or disk. | **REAL** |
+| **3** | **Auth and Identity** | Opt 1 | Step 2 | Single-user local sign-in, cryptographic session management, device signature binding. | You can sign in locally, inspect active sessions and registered device keys. | **REAL** |
+| **4** | **Component Registry v0** | Opt 2 | Step 1 | Version manifest schema, changelog generator, semantic compatibility rules engine. | An incompatible or corrupt update is blocked with an explicit diagnostic reason. | **REAL** |
 
 ---
 
 ### Wave 2: Rules and Model Access (28 Days)
 *Goal: A prompt runs against any activated provider (local or remote) with usage tracked and rules enforced.*
 
-| Step | Component | Opt | Needs First | Build First | Done When (Verification Gate) |
-|---|---|---|---|---|---|
-| **5** | **Rules Layer, Minimal** | Opt 1 | Step 4 | Universal rule schema, event hooks, and propagation protocol to client modules. | A single rule update propagates to all connected apps/modules immediately. |
-| **6** | **Provider Activation** | Opt 1 | Step 2 | Key/OAuth credential onboarding, automated ping test, background health re-check. | A revoked or depleted provider key immediately transitions to inactive. |
-| **7** | **Model Gateway Integration** | Opt 2 | Step 6 | Integrate routing engine, capability matrix, custom Auto with one-line reason, fallback cascades, and external routes. | A prompt succeeds across any activated provider with automatic fallback. |
-| **8** | **Model Serving** | Opt 2 | Step 7 | Local runtime adapter (Ollama/llama.cpp), hardware detection profiles, RAM/VRAM resource limits. | A local quantized model completes inference completely offline. |
-| **9** | **Observability, Basic** | Opt 2 | Step 7 | Token usage logging, cost estimator, privacy-respecting personal usage dashboard. | Logged metrics match exact upstream provider billing counts. |
+| Step | Component | Opt | Needs First | Build First | Done When (Verification Gate) | Status |
+|:---:|---|---|---|---|---|:---:|
+| **5** | **Rules Layer, Minimal** | Opt 1 | Step 4 | Universal rule schema, event hooks, and propagation protocol to client modules. | A single rule update propagates to all connected apps/modules immediately. | **REAL** |
+| **6** | **Provider Activation** | Opt 1 | Step 2 | Key/OAuth credential onboarding, automated ping test, background health re-check. | A revoked or depleted provider key immediately transitions to inactive. | **PARTIAL** |
+| **7** | **Model Gateway Integration** | Opt 2 | Step 6 | Integrate routing engine, capability matrix, custom Auto with one-line reason, fallback cascades, and external routes. | A prompt succeeds across any activated provider with automatic fallback. | **PARTIAL** |
+| **8** | **Model Serving** | Opt 2 | Step 7 | Local runtime adapter (Ollama/llama.cpp), hardware detection profiles, RAM/VRAM resource limits. | A local quantized model completes inference completely offline. | **PARTIAL** |
+| **9** | **Observability, Basic** | Opt 2 | Step 7 | Token usage logging, cost estimator, privacy-respecting personal usage dashboard. | Logged metrics match exact upstream provider billing counts. | **PARTIAL** |
 
 ---
 
 ### Wave 3: Protect and Store (14 Days)
 *Goal: Real users are protected by automated guardrails, and persistent files are managed with quotas.*
 
-| Step | Component | Opt | Needs First | Build First | Done When (Verification Gate) |
-|---|---|---|---|---|---|
-| **10** | **Guardrails and Safety v0** | Opt 1 | Steps 5, 7 | Curated rule set, automated test harness of known attack vectors, notices, crisis response handler. | All known bad cases are blocked in automated CI testing. |
-| **11** | **Subscription & Key Tracker** | Opt 1 | Steps 6, 9 | Subscription plans, quota alerts, renewal dates, and active key monitoring. | Active keys, quotas, and renewal countdowns are clearly listed. |
-| **12** | **Storage and Files** | Opt 2 | Step 3 | Storage engine adapter (MinIO/local FS), file library model, per-project storage quotas. | Files can be uploaded, indexed, reused across projects, and quota-enforced. |
+| Step | Component | Opt | Needs First | Build First | Done When (Verification Gate) | Status |
+|:---:|---|---|---|---|---|:---:|
+| **10** | **Guardrails and Safety v0** | Opt 1 | Steps 5, 7 | Curated rule set, automated test harness of known attack vectors, notices, crisis response handler. | All known bad cases are blocked in automated CI testing. | **REAL** |
+| **11** | **Subscription & Key Tracker** | Opt 1 | Steps 6, 9 | Subscription plans, quota alerts, renewal dates, and active key monitoring. | Active keys, quotas, and renewal countdowns are clearly listed. | **REAL** |
+| **12** | **Storage and Files** | Opt 2 | Step 3 | Storage engine adapter (MinIO/local FS), file library model, per-project storage quotas. | Files can be uploaded, indexed, reused across projects, and quota-enforced. | **PARTIAL** |
 
 ---
 
 ### Wave 4: Knowledge (28 Days)
 *Goal: The intelligence brain reliably remembers and grounds answers from local files and the web.*
 
-| Step | Component | Opt | Needs First | Build First | Done When (Verification Gate) |
-|---|---|---|---|---|---|
-| **13** | **Memory and Retrieval** | Opt 2 | Steps 7, 12 | Vector store integration (Qdrant/Chroma), memory manager (Mem0/facts engine), sources view, edit/delete controls. | Memory recalls context with citation, and items can be inspected and deleted. |
-| **14** | **Knowledge and Docs** | Opt 2 | Step 13 | Notes and documents engine, source-grounded notebook linking into memory. | Generated answers cite local documents and notebook entries. |
-| **15** | **Global Search** | Opt 2 | Steps 13, 14 | Keyword index (Typesense/Meilisearch), semantic search, unified multi-source query planner. | A single query searches across chats, files, notes, and memory simultaneously. |
-| **16** | **Web Search and Scraping** | Opt 2 | Steps 7, 10 | Crawl and scrape adapter (Firecrawl/Crawl4AI), search aggregator, citation validator. | Agent outputs cite verified, live external web sources. |
+| Step | Component | Opt | Needs First | Build First | Done When (Verification Gate) | Status |
+|:---:|---|---|---|---|---|:---:|
+| **13** | **Memory and Retrieval** | Opt 2 | Steps 7, 12 | Vector store integration (Qdrant/Chroma), memory manager (Mem0/facts engine), sources view, edit/delete controls. | Memory recalls context with citation, and items can be inspected and deleted. | **PARTIAL** |
+| **14** | **Knowledge and Docs** | Opt 2 | Step 13 | Notes and documents engine, source-grounded notebook linking into memory. | Generated answers cite local documents and notebook entries. | **PARTIAL** |
+| **15** | **Global Search** | Opt 2 | Steps 13, 14 | Keyword index (Typesense/Meilisearch), semantic search, unified multi-source query planner. | A single query searches across chats, files, notes, and memory simultaneously. | **PARTIAL** |
+| **16** | **Web Search and Scraping** | Opt 2 | Steps 7, 10 | Crawl and scrape adapter (Firecrawl/Crawl4AI), search aggregator, citation validator. | Agent outputs cite verified, live external web sources. | **PARTIAL** |
 
 ---
 
 ### Wave 5: Control and Orchestration (35 Days)
 *Goal: Multi-step, parallel tasks run safely within strict resource, sandbox, and permission constraints.*
 
-| Step | Component | Opt | Needs First | Build First | Done When (Verification Gate) |
-|---|---|---|---|---|---|
-| **17** | **Resource Optimizer** | Opt 2 | Steps 8, 9 | System telemetry signals, rate-limit awareness, dynamic queue & concurrency caps. | Host system remains completely responsive even under peak model inference load. |
-| **18** | **Permission Modes** | Opt 1 | Step 5 | 3-mode security policy engine: "Always ask", "Ask on changes", "Auto-review". | Each mode predictably gates or permits privileged actions. |
-| **19** | **Orchestrator** | Opt 2 | Steps 7, 17, 18 | Custom multi-step planner, parallel fan-out/fan-in, pause/resume, human approval gate, cost checks. | A complex multi-step parallel workflow executes, reports status, and halts on command. |
-| **20** | **Agent Execution & Sandboxes** | Opt 2 | Steps 18, 19 | Isolated code sandbox (Docker/Wasm/E2B), runtime container, device runner. | Untrusted code executes cleanly without escaping sandbox limits. |
+| Step | Component | Opt | Needs First | Build First | Done When (Verification Gate) | Status |
+|:---:|---|---|---|---|---|:---:|
+| **17** | **Resource Optimizer** | Opt 2 | Steps 8, 9 | System telemetry signals, rate-limit awareness, dynamic queue & concurrency caps. | Host system remains completely responsive even under peak model inference load. | **PARTIAL** |
+| **18** | **Permission Modes** | Opt 1 | Step 5 | 3-mode security policy engine: "Always ask", "Ask on changes", "Auto-review". | Each mode predictably gates or permits privileged actions. | **REAL** |
+| **19** | **Orchestrator** | Opt 2 | Steps 7, 17, 18 | Custom multi-step planner, parallel fan-out/fan-in, pause/resume, human approval gate, cost checks. | A complex multi-step parallel workflow executes, reports status, and halts on command. | **REAL** |
+| **20** | **Agent Execution & Sandboxes** | Opt 2 | Steps 18, 19 | Isolated code sandbox (Docker/Wasm/E2B), runtime container, device runner. | Untrusted code executes cleanly without escaping sandbox limits. | **PARTIAL** |
 
 ---
 
 ### Wave 6: Tools and Agents (27 Days)
 *Goal: Curated tools, MCP connectors, and autonomous internal agents function smoothly with smart routing.*
 
-| Step | Component | Opt | Needs First | Build First | Done When (Verification Gate) |
-|---|---|---|---|---|---|
-| **21** | **Tool and MCP Registry** | Opt 2 | Steps 2, 18, 19 | Curated catalog, idle-until-needed lazy loader, connector auth (Nango), request queue. | A tool asks for credentials only at the instant it is invoked. |
-| **22** | **Internal Agents** | Opt 1 | Steps 19, 20, 21 | Provider-health agent, guardrail-evaluator agent, resource-monitoring agent. | Background maintenance agents run autonomously with full audit logs. |
-| **23** | **Recommender, Full** | Opt 1 | Steps 9, 21 | Empirical performance scoring from usage telemetry, automated second-opinion rule. | Auto model/tool selections systematically outperform manual picks on benchmark test suite. |
-| **24** | **Browser Automation** | Opt 2 | Steps 18, 20, 21 | Browser agent engine (Browser Use), headless browser profile, confirmation policy. | Browser agent navigates workflows and pauses for confirmation before sensitive actions. |
+| Step | Component | Opt | Needs First | Build First | Done When (Verification Gate) | Status |
+|:---:|---|---|---|---|---|:---:|
+| **21** | **Tool and MCP Registry** | Opt 2 | Steps 2, 18, 19 | Curated catalog, idle-until-needed lazy loader, connector auth (Nango), request queue. | A tool asks for credentials only at the instant it is invoked. | **PARTIAL** |
+| **22** | **Internal Agents** | Opt 1 | Steps 19, 20, 21 | Provider-health agent, guardrail-evaluator agent, resource-monitoring agent. | Background maintenance agents run autonomously with full audit logs. | **REAL** |
+| **23** | **Recommender, Full** | Opt 1 | Steps 9, 21 | Empirical performance scoring from usage telemetry, automated second-opinion rule. | Auto model/tool selections systematically outperform manual picks on benchmark test suite. | **REAL** |
+| **24** | **Browser Automation** | Opt 2 | Steps 18, 20, 21 | Browser agent engine (Browser Use), headless browser profile, confirmation policy. | Browser agent navigates workflows and pauses for confirmation before sensitive actions. | **SIMULATED** |
 
 ---
 
 ### Wave 7: Builders (24 Days)
 *Goal: Users can assemble customized agents and multi-step workflows using plain language descriptions.*
 
-| Step | Component | Opt | Needs First | Build First | Done When (Verification Gate) |
-|---|---|---|---|---|---|
-| **25** | **Agent Builder** | Opt 2 | Steps 5, 19, 20, 21 | Agent definition schema, describe-to-agent compiler, dynamic rules binding. | A plain English prompt generates a fully configured, functional agent. |
-| **26** | **Workflow Builder** | Opt 2 | Steps 19, 25 | Workflow graph canvas/engine, describe-to-workflow synthesis, orchestrator dispatcher. | A described workflow compiles and executes cleanly via the orchestrator. |
-| **27** | **Skills & Plugin Packaging** | Opt 1 | Steps 4, 21, 25 | Portable skill manifest format, cryptographic packaging, hot-reload installer. | A custom skill or plugin packages, installs, and runs in isolated runtime. |
+| Step | Component | Opt | Needs First | Build First | Done When (Verification Gate) | Status |
+|:---:|---|---|---|---|---|:---:|
+| **25** | **Agent Builder** | Opt 2 | Steps 5, 19, 20, 21 | Agent definition schema, describe-to-agent compiler, dynamic rules binding. | A plain English prompt generates a fully configured, functional agent. | **REAL** |
+| **26** | **Workflow Builder** | Opt 2 | Steps 19, 25 | Workflow graph canvas/engine, describe-to-workflow synthesis, orchestrator dispatcher. | A described workflow compiles and executes cleanly via the orchestrator. | **REAL** |
+| **27** | **Skills & Plugin Packaging** | Opt 1 | Steps 4, 21, 25 | Portable skill manifest format, cryptographic packaging, hot-reload installer. | A custom skill or plugin packages, installs, and runs in isolated runtime. | **REAL** |
 
 ---
 
 ### Wave 8: Reach and Finishing (53 Days)
 *Goal: Multi-channel reach, voice, media, sync, remote pairing, and production release distribution.*
 
-| Step | Component | Opt | Needs First | Build First | Done When (Verification Gate) |
-|---|---|---|---|---|---|
-| **28** | **Notifications** | Opt 2 | Step 19 | Unified notification inbox, channel dispatchers (Web/Desktop/Email), quiet hours rule. | A completed asynchronous background task sends a timely alert. |
-| **29** | **Voice and Speech** | Opt 2 | Steps 7, 12 | Local/streamed dictation engine (Whisper), real-time conversational voice pipeline (LiveKit). | User can hold a low-latency voice conversation with the system. |
-| **30** | **Media Generation** | Opt 2 | Steps 7, 10, 12, 19 | Image route, audio route, video route, generation queue, safety checks. | A generated image or audio file renders and passes automated safety filters. |
-| **31** | **Translation** | Opt 2 | Step 7 | Auto-translation gateway middleware, multi-language detection. | Toggle button translates conversational sessions on-the-fly. |
-| **32** | **Remote Access & Pairing** | Opt 2 | Steps 2, 3 | Cryptographic device pairing, end-to-end encrypted relay, mesh network routing. | A paired external client securely connects to the host machine across networks. |
-| **33** | **Sync** | Opt 2 | Steps 3, 12, 13, 32 | Settings sync, conversation history sync, distributed vector memory sync. | Two paired nodes maintain deterministic consistency. |
-| **34** | **Component Registry Finishing** | Opt 2 | Steps 4, and all | Production update channel, staged rollout controller, user-app export packager. | An exported user application updates strictly when its underlying components update. |
+| Step | Component | Opt | Needs First | Build First | Done When (Verification Gate) | Status |
+|:---:|---|---|---|---|---|:---:|
+| **28** | **Notifications** | Opt 2 | Step 19 | Unified notification inbox, channel dispatchers (Web/Desktop/Email), quiet hours rule. | A completed asynchronous background task sends a timely alert. | **PARTIAL** |
+| **29** | **Voice and Speech** | Opt 2 | Steps 7, 12 | Local/streamed dictation engine (Whisper), real-time conversational voice pipeline (LiveKit). | User can hold a low-latency voice conversation with the system. | **PARTIAL** |
+| **30** | **Media Generation** | Opt 2 | Steps 7, 10, 12, 19 | Image route, audio route, video route, generation queue, safety checks. | A generated image or audio file renders and passes automated safety filters. | **SIMULATED** |
+| **31** | **Translation** | Opt 2 | Step 7 | Auto-translation gateway middleware, multi-language detection. | Toggle button translates conversational sessions on-the-fly. | **SIMULATED** |
+| **32** | **Remote Access & Pairing** | Opt 2 | Steps 2, 3 | Cryptographic device pairing, end-to-end encrypted relay, mesh network routing. | A paired external client securely connects to the host machine across networks. | **SIMULATED** |
+| **33** | **Sync** | Opt 2 | Steps 3, 12, 13, 32 | Settings sync, conversation history sync, distributed vector memory sync. | Two paired nodes maintain deterministic consistency. | **PARTIAL** |
+| **34** | **Component Registry Finishing** | Opt 2 | Steps 4, and all | Production update channel, staged rollout controller, user-app export packager. | An exported user application updates strictly when its underlying components update. | **REAL** |
+
