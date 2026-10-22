@@ -44,8 +44,11 @@ integrations = [
     "meilisearch>=0.30.0",
     "redis>=5.0.0",
 ]
+browser = [
+    "playwright>=1.40.0",
+]
 all = [
-    "pheonix[test,dev,integrations]",
+    "pheonix[test,dev,integrations,browser]",
 ]
 
 [tool.setuptools.packages.find]

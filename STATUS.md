@@ -36,7 +36,7 @@
 | **21** | **Tool and MCP Registry** (`tools_mcp`) | **PARTIAL** | `tools_mcp/runner/dispatcher.py`, `tools_mcp/tests/test_tools_mcp.py` | Live external MCP server stdio/SSE socket transport. |
 | **22** | **Internal Agents** (`internal_agents`) | **REAL** | `internal_agents/core/runner.py`, `internal_agents/tests/test_internal_agents.py` | Persistent background daemon cron scheduler. |
 | **23** | **Recommender, Full** (`recommender`) | **REAL** | `recommender/core/engine.py`, `recommender/tests/test_recommender.py` | Large-scale empirical benchmark dataset training. |
-| **24** | **Browser Automation** (`browser_automation`) | **SIMULATED** | `browser_automation/runtime/session_runner.py`, `browser_automation/tests/test_browser_automation.py` | Real Chromium / Playwright driver or browser-use subprocess; simulates DOM in memory. |
+| **24** | **Browser Automation** (`browser_automation`) | **PARTIAL** | `browser_automation/core/agent.py`, `browser_automation/tests/test_playwright_live.py` | Full multi-tab human takeover and CAPTCHA solving; Playwright adapter verified live. |
 | **25** | **Agent Builder** (`agent_builder`) | **REAL** | `agent_builder/core/builder.py`, `agent_builder/tests/test_agent_builder.py` | Visual drag-and-drop web canvas frontend. |
 | **26** | **Workflow Builder** (`workflow_builder`) | **REAL** | `workflow_builder/core/builder.py`, `workflow_builder/tests/test_workflow_builder.py` | Visual node-graph UI editor. |
 | **27** | **Skills & Plugin Packaging** (`skills_packaging`) | **REAL** | `skills_packaging/core/packager.py`, `skills_packaging/tests/test_skills_packaging.py` | Remote marketplace package registry index. |
