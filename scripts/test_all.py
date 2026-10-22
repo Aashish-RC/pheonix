@@ -126,6 +126,7 @@ def main():
         ("Remote Access & Pairing (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "remote_access"),
         ("State Sync Engine (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "sync_engine"),
         ("Release Finishing & Update Channel (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "release_finishing"),
+        ("Resource Optimizer (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "resource_optimizer"),
         ("Agent Layer (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "agent"),
     ]
 
@@ -147,7 +148,7 @@ def main():
     sep_line = "=" * 80
     sub_sep = "-" * 80
     print(f"\n{sep_line}")
-    print(f"{'Pheonix Test Suite Matrix (34 Modules)':^80}")
+    print(f"{f'Pheonix Test Suite Matrix ({len(steps)} Modules)':^80}")
     print(f"{sep_line}")
     print(f"{'Module':<45} | {'Tests':>8} | {'Duration':>10} | {'Status':^8}")
     print(sub_sep)
@@ -159,7 +160,7 @@ def main():
 
     print(sep_line)
     summary_status = "ALL PASSED" if all_passed else "FAILED"
-    print(f"{'TOTAL: 34 Modules':<45} | {total_tests:>8} | {total_duration:>9.2f}s | {summary_status:^8}")
+    print(f"{f'TOTAL: {len(steps)} Modules':<45} | {total_tests:>8} | {total_duration:>9.2f}s | {summary_status:^8}")
     print(f"{sep_line}\n")
 
     if all_passed:

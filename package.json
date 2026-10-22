@@ -40,6 +40,7 @@
     "test:remote-access": "python -m pytest remote_access/tests",
     "test:sync": "python -m pytest sync_engine/tests",
     "test:release-finishing": "python -m pytest release_finishing/tests",
+    "test:resource-optimizer": "python -m pytest resource_optimizer/tests",
     "test:agent": "python -m pytest agent/tests",
     "build:gateway": "pnpm --dir model-gateway build"
   }

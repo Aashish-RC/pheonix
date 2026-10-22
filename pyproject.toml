@@ -55,7 +55,7 @@ include = [
     "guardrails*", "internal_agents*", "knowledge*", "media_gen*", "memory*",
     "notifications*", "observability*", "orchestrator*", "permissions*",
     "providers*", "recommender*", "registry*", "release_finishing*",
-    "remote_access*", "rules*", "sandboxes*", "search*", "serving*",
+    "remote_access*", "resource_optimizer*", "rules*", "sandboxes*", "search*", "serving*",
     "skills_packaging*", "storage*", "sync_engine*", "tools_mcp*",
     "tracker*", "translation*", "vault*", "voice_speech*", "web_search*",
     "workflow_builder*"

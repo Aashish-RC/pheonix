@@ -29,6 +29,7 @@ class ParallelDAGRunner(BaseDAGRunner):
         tool_dispatcher: Optional[Any] = None,
         notification_listener: Optional[Any] = None,
         max_resource_concurrency: Optional[int] = None,
+        resource_optimizer: Optional[Any] = None,
     ):
         self.planner = planner or MultiStepPlanner()
         self.store = store or SQLitePlanStore(db_path=":memory:")
@@ -37,6 +38,7 @@ class ParallelDAGRunner(BaseDAGRunner):
         self._tool_dispatcher = tool_dispatcher
         self._notification_listener = notification_listener
         self.max_resource_concurrency = max_resource_concurrency
+        self.resource_optimizer = resource_optimizer
         self._handlers: Dict[str, Callable[[PlanNode, Dict[str, Any]], Any]] = {}
 
     @property
@@ -81,6 +83,25 @@ class ParallelDAGRunner(BaseDAGRunner):
     ) -> StepResult:
         if cancellation_token and cancellation_token.is_cancelled:
             return StepResult(node_id=node.id, status=TaskStatus.CANCELLED, error=cancellation_token.reason)
+
+        acquired = False
+        if self.resource_optimizer:
+            while True:
+                if cancellation_token and cancellation_token.is_cancelled:
+                    return StepResult(node_id=node.id, status=TaskStatus.CANCELLED, error=cancellation_token.reason)
+                decision = self.resource_optimizer.acquire(node)
+                if decision.action == "allow":
+                    acquired = True
+                    break
+                elif decision.action == "reject":
+                    return StepResult(
+                        node_id=node.id,
+                        status=TaskStatus.FAILED,
+                        error=f"Rejected by resource optimizer: {decision.reason}",
+                    )
+                elif decision.action == "delay":
+                    delay = decision.delay_seconds if decision.delay_seconds > 0 else 0.05
+                    time.sleep(delay)
 
         start_time = time.perf_counter()
         node.status = TaskStatus.RUNNING
@@ -199,6 +220,9 @@ class ParallelDAGRunner(BaseDAGRunner):
                 error=str(e),
                 duration_ms=round(duration_ms, 2),
             )
+        finally:
+            if self.resource_optimizer and acquired:
+                self.resource_optimizer.release(node)
 
     def run_plan(
         self,
@@ -232,6 +256,8 @@ class ParallelDAGRunner(BaseDAGRunner):
         if self.max_resource_concurrency is not None:
             concurrency_limit = min(concurrency_limit, self.max_resource_concurrency)
         max_workers = max(1, min(concurrency_limit, 16))
+        if self.resource_optimizer is not None:
+            max_workers = max(max_workers, min(len(plan.nodes), 16))
 
         for layer in layers:
             # Check for cancellation before starting the layer
