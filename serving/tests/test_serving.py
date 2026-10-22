@@ -8,6 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 import pytest
+from unittest.mock import MagicMock
 from serving.models import (
     DeviceProfile,
     ResourceLimits,
@@ -80,14 +81,24 @@ class TestResourceLimiter:
         # Slot released despite error
         assert limiter.active_streams == 0
 
-    def test_enforces_ram_safety_threshold(self):
-        # Setting threshold to impossible 1% triggers ResourceLimitExceededError
+    def test_enforces_ram_safety_threshold(self, monkeypatch):
+        mock_mem = MagicMock(percent=95.0, available=16 * (1024 ** 3))
+        monkeypatch.setattr("psutil.virtual_memory", lambda: mock_mem)
+
         strict_limits = ResourceLimits(max_ram_usage_percent=10.0)
         limiter = ResourceLimiter(strict_limits)
 
         with pytest.raises(ResourceLimitExceededError) as exc_info:
             limiter.check_limits()
         assert "exceeding safety threshold" in str(exc_info.value)
+
+    def test_ram_below_safety_threshold_does_not_raise(self, monkeypatch):
+        mock_mem = MagicMock(percent=5.0, available=16 * (1024 ** 3))
+        monkeypatch.setattr("psutil.virtual_memory", lambda: mock_mem)
+
+        limits = ResourceLimits(max_ram_usage_percent=10.0)
+        limiter = ResourceLimiter(limits)
+        limiter.check_limits()
 
 
 class TestModelStore:
