@@ -4,7 +4,7 @@ Integrates with Key Store Vault and coordinates probe tests and revocation synch
 """
 
 import time
-from typing import Dict, List, Optional, Tuple, Callable
+from typing import Any, Dict, List, Optional, Tuple, Callable
 from pathlib import Path
 
 from ..models import (
