@@ -1,5 +1,5 @@
 # Pheonix Core Data Rules & Handling Specification
-*Directly Derived from [Intelligence (10).txt](file:///d:/pheonix/Intelligence%20%2810%29.txt)*
+*Directly Derived from [Intelligence (10).txt](file:///d:/pheonix/docs/planning/Intelligence%20%2810%29.txt)*
 
 ---
 

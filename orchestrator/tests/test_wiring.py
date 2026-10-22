@@ -16,8 +16,9 @@ from notifications.channels.dispatcher import ChannelDispatcher
 from notifications.storage.inbox_store import InboxStore
 
 
-def test_w6_orchestrator_runs_code_in_sandbox():
+def test_w6_orchestrator_runs_code_in_sandbox(monkeypatch):
     """W6: Orchestrator executes a code node through the sandboxes engine."""
+    monkeypatch.setenv("SANDBOX_ALLOW_LOCAL", "1")
     planner = MultiStepPlanner()
     runner = ParallelDAGRunner(sandbox_manager=SandboxManager())
 
