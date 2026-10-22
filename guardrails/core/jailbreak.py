@@ -34,12 +34,19 @@ JAILBREAK_PATTERNS = [
     # 5. Role confusion & Authority spoofing
     r"(?i)\b(?:you\s+are\s+not\s+an?\s+ai\s+assistant|you\s+are\s+now\s+the\s+system\s+root)\b",
     r"(?i)\b(?:system\s+maintenance\s+mode:\s*disable\s+all\s+filters|developer\s+override\s+code\s+[A-Z0-9]+)\b",
+
+    # 6. Dangerous instructions & extraction
+    r"(?i)\b(?:print|reveal|output|leak|show)\s+(?:your\s+)?(?:initial\s+)?(?:system\s+prompt|core\s+instructions)\b",
+    r"(?i)\b(?:unrestricted\s+(?:assistance\s+)?mode|in\s+unrestricted\s+mode)\b",
+    r"(?i)\b(?:combine|mix)\s+(?:the\s+)?ammonium\s+nitrate\s+with\s+(?:fuel\s+oil|diesel)\b",
+    r"(?i)\b(?:step[- ]by[- ]step\s+(?:guide|instructions)\s+to\s+(?:make|build)\s+(?:a\s+bomb|an\s+explosive))\b",
 ]
 
 HOMOGLYPH_MAP = {
     'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c', 'у': 'y', 'х': 'x',
     'А': 'A', 'В': 'B', 'Е': 'E', 'К': 'K', 'М': 'M', 'Н': 'H', 'О': 'O',
     'Р': 'P', 'С': 'C', 'Т': 'T', 'Х': 'X',
+    'і': 'i', 'І': 'I', 'ј': 'j', 'Ј': 'J', 'ѕ': 's', 'Ѕ': 'S', 'ԁ': 'd', 'ԛ': 'q',
 }
 
 
