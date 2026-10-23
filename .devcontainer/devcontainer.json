@@ -1,0 +1,44 @@
+{
+  "name": "Pheonix Development Environment",
+  "image": "mcr.microsoft.com/devcontainers/universal:2-linux",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "enableMoby": false
+    }
+  },
+  "forwardPorts": [4000, 6333, 7700, 8025, 11434, 3001],
+  "portsAttributes": {
+    "4000": {
+      "label": "Model Gateway",
+      "onAutoForward": "notify"
+    },
+    "6333": {
+      "label": "Qdrant Vector DB",
+      "onAutoForward": "silent"
+    },
+    "7700": {
+      "label": "Meilisearch",
+      "onAutoForward": "silent"
+    },
+    "8025": {
+      "label": "Mailpit Email Web UI",
+      "onAutoForward": "notify"
+    },
+    "11434": {
+      "label": "Ollama Local LLM",
+      "onAutoForward": "silent"
+    }
+  },
+  "postCreateCommand": "bash -c 'if [ ! -f .env ]; then cp .env.example .env; fi && pip install -e \".[all]\" && pnpm --dir model-gateway install'",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-azuretools.vscode-docker",
+        "charliermarsh.ruff"
+      ]
+    }
+  }
+}

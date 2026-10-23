@@ -6,6 +6,11 @@ Pheonix is a local-first, zero-trust AI operating ecosystem unifying intelligenc
 
 ## Getting Started
 
+> [!TIP]
+> **Recommended: Run in GitHub Codespaces**  
+> If you prefer not to install dependencies locally or your local Docker hangs, run Pheonix in one click via cloud-hosted **GitHub Codespaces**.  
+> See the step-by-step instructions in the [Codespaces Manual](docs/CODESPACES_MANUAL.md).
+
 ### Prerequisites
 - Python 3.12+
 - Node.js 20+ & pnpm
@@ -98,9 +103,9 @@ Every component and implementation step in Pheonix adheres to strict, objective 
 
 - [STATUS.md](STATUS.md): Current implementation status and evidence for all ecosystem modules.
 - [ROADMAP.md](ROADMAP.md): Architecture roadmap and component domains.
+- [docs/CODESPACES_MANUAL.md](docs/CODESPACES_MANUAL.md): Step-by-step instructions for running in cloud GitHub Codespaces.
 - [docs/planning/](docs/planning/): Planning blueprints, parity register, and ecosystem specifications:
   - `V1-product-ecosystem-plan.md`
   - `User-built-AI-app-ecosystem-with-shared-components.md`
-  - `Intelligence (10).txt`
   - `proprietary_and_oss_alternatives_directory.xlsx`
 - [docs/security/](docs/security/): Threat model, data handling rules, and red-team plan.
