@@ -58,6 +58,17 @@ class SQLiteAgentLogStore(BaseVisibleLogStore):
                 CREATE INDEX IF NOT EXISTS idx_agent_logs_time
                 ON internal_agent_logs(timestamp DESC);
             """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS internal_agent_schedules (
+                    agent_type TEXT PRIMARY KEY,
+                    interval_seconds REAL NOT NULL,
+                    last_run_at TEXT,
+                    next_run_at TEXT,
+                    enabled INTEGER NOT NULL DEFAULT 1,
+                    total_runs INTEGER NOT NULL DEFAULT 0,
+                    last_status TEXT
+                );
+            """)
             conn.commit()
             if self._memory_conn is None:
                 conn.close()
@@ -117,6 +128,93 @@ class SQLiteAgentLogStore(BaseVisibleLogStore):
                         )
                     )
                 return entries
+            finally:
+                if self._memory_conn is None:
+                    conn.close()
+
+    def save_schedule(
+        self,
+        agent_type: str,
+        interval_seconds: float,
+        enabled: bool = True,
+        last_run_at: Optional[str] = None,
+        next_run_at: Optional[str] = None,
+        last_status: Optional[str] = None,
+    ) -> None:
+        """Persist or update background schedule for an agent."""
+        with self._lock:
+            conn = self._get_connection()
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO internal_agent_schedules (
+                        agent_type, interval_seconds, last_run_at, next_run_at, enabled, last_status
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(agent_type) DO UPDATE SET
+                        interval_seconds = excluded.interval_seconds,
+                        enabled = excluded.enabled,
+                        next_run_at = coalesce(excluded.next_run_at, internal_agent_schedules.next_run_at)
+                    """,
+                    (
+                        agent_type,
+                        interval_seconds,
+                        last_run_at,
+                        next_run_at,
+                        1 if enabled else 0,
+                        last_status,
+                    ),
+                )
+                conn.commit()
+            finally:
+                if self._memory_conn is None:
+                    conn.close()
+
+    def get_schedules(self) -> List[dict]:
+        """Fetch all persistent schedules across internal agents."""
+        with self._lock:
+            conn = self._get_connection()
+            try:
+                cur = conn.execute("SELECT * FROM internal_agent_schedules")
+                rows = cur.fetchall()
+                results = []
+                for r in rows:
+                    results.append({
+                        "agent_type": r["agent_type"],
+                        "interval_seconds": float(r["interval_seconds"]),
+                        "last_run_at": r["last_run_at"],
+                        "next_run_at": r["next_run_at"],
+                        "enabled": bool(r["enabled"]),
+                        "total_runs": int(r["total_runs"]),
+                        "last_status": r["last_status"],
+                    })
+                return results
+            finally:
+                if self._memory_conn is None:
+                    conn.close()
+
+    def record_agent_run(
+        self,
+        agent_type: str,
+        status: str,
+        next_run_at: Optional[str] = None,
+    ) -> None:
+        """Record completed cycle and increment run counter."""
+        now = datetime.now().isoformat()
+        with self._lock:
+            conn = self._get_connection()
+            try:
+                conn.execute(
+                    """
+                    UPDATE internal_agent_schedules
+                    SET last_run_at = ?,
+                        next_run_at = ?,
+                        last_status = ?,
+                        total_runs = total_runs + 1
+                    WHERE agent_type = ?
+                    """,
+                    (now, next_run_at, status, agent_type),
+                )
+                conn.commit()
             finally:
                 if self._memory_conn is None:
                     conn.close()

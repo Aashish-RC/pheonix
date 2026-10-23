@@ -16,6 +16,7 @@ from ..core.models import (
 )
 from ..engine.confirmation_rules import ConfirmationRulesGate
 from ..runtime.session_runner import BrowserSessionRunner
+from .takeover import CaptchaDetector, TakeoverManager, TakeoverRequest, TakeoverTrigger
 
 INTERCEPTOR_BUTTON_REGEX = re.compile(
     r"\b(submit|delete|pay|confirm|buy|checkout|purchase|remove|cancel-subscription)\b",
@@ -182,6 +183,7 @@ class BrowserUseAgent(BrowserAgent):
         adapter: Optional[BrowserUseAdapter] = None,
         use_playwright: bool = False,
         headless: bool = True,
+        takeover_manager: Optional[TakeoverManager] = None,
     ):
         super().__init__(
             session_runner=session_runner,
@@ -192,6 +194,7 @@ class BrowserUseAgent(BrowserAgent):
             headless=headless,
             use_playwright=self.use_playwright,
         )
+        self.takeover_manager = takeover_manager or TakeoverManager()
 
     def open_page(self, url: str) -> BrowserObservation:
         """Opens target URL in browser and returns initial observation."""
@@ -223,6 +226,29 @@ class BrowserUseAgent(BrowserAgent):
         obs = self.runner.get_current_observation()
         return obs.dom_snippet
 
+    def resolve_takeover_and_resume(
+        self,
+        request_id: str,
+        action: Optional[BrowserAction] = None,
+        operator_id: str = "human_user",
+        user_notes: Optional[str] = None,
+    ) -> BrowserTaskReport:
+        """Resolves human takeover and resumes automated execution."""
+        req = self.takeover_manager.resolve_takeover(request_id, user_notes=user_notes, operator_id=operator_id)
+        if action:
+            return self.step(action, auto_approve=True)
+        obs = self.runner.get_current_observation()
+        return BrowserTaskReport(
+            task_id=req.request_id,
+            goal="Resume after human takeover",
+            actions_executed=1,
+            confirmations_requested=1,
+            confirmations_approved=1,
+            success=True,
+            final_url=obs.current_url,
+            extracted_data={"takeover_resolved": True, "request_id": req.request_id, "resolved_by": operator_id},
+        )
+
     def step(
         self,
         action: BrowserAction,
@@ -231,6 +257,30 @@ class BrowserUseAgent(BrowserAgent):
         """Executes a single browser step with confirmation pause on form submit or consequential buttons."""
         obs = self.runner.get_current_observation()
         current_url = self.adapter.get_current_url() if self.use_playwright else obs.current_url
+
+        # Check for CAPTCHA / bot challenge
+        challenge = CaptchaDetector.detect(obs.dom_snippet)
+        if challenge and not auto_approve:
+            req = self.takeover_manager.request_takeover(
+                session_id=self.runner.profile.session_id,
+                trigger=TakeoverTrigger.CAPTCHA_DETECTED,
+                reason=f"Verification barrier detected: {challenge}",
+                url=current_url,
+                challenge_type=challenge,
+                dom_context=obs.dom_snippet[:400],
+            )
+            return BrowserTaskReport(
+                task_id=action.action_id,
+                goal=f"Execute {action.action_type.value}",
+                actions_executed=0,
+                confirmations_requested=1,
+                confirmations_approved=0,
+                success=False,
+                final_url=current_url,
+                error_message=f"Human takeover required: {challenge} challenge detected. Request ID: {req.request_id}",
+                extracted_data={"takeover_required": True, "challenge_type": challenge, "request_id": req.request_id},
+                action_log=[action],
+            )
 
         # Check adapter security interceptor
         is_safe = self.adapter.interceptor_callback(action)
@@ -310,4 +360,8 @@ __all__ = [
     "BrowserUseAgent",
     "BrowserUseAdapter",
     "INTERCEPTOR_BUTTON_REGEX",
+    "CaptchaDetector",
+    "TakeoverManager",
+    "TakeoverRequest",
+    "TakeoverTrigger",
 ]

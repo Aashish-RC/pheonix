@@ -407,3 +407,122 @@ class ParallelDAGRunner(BaseDAGRunner):
             duration_ms=round(total_duration, 2),
             node_results=node_results,
         )
+
+    def resume_plan(
+        self,
+        plan_id: str,
+        cancellation_token: Optional[CancellationToken] = None,
+    ) -> PlanExecutionReport:
+        """Resumes an interrupted or partially completed plan from its persistent checkpoint state."""
+        plan = self.store.get_plan(plan_id)
+        if not plan:
+            raise ValueError(f"Plan '{plan_id}' not found in plan store")
+
+        start_plan_time = time.perf_counter()
+        layers = self.planner.get_execution_layers(plan)
+        plan.status = TaskStatus.RUNNING
+        self.store.update_plan_status(plan.id, TaskStatus.RUNNING)
+
+        context: Dict[str, Any] = {}
+        node_results: Dict[str, StepResult] = {}
+
+        # Populate context from completed nodes
+        for nid, node in plan.nodes.items():
+            if node.status == TaskStatus.COMPLETED:
+                context[nid] = node.output
+                node_results[nid] = StepResult(
+                    node_id=nid,
+                    status=TaskStatus.COMPLETED,
+                    output=node.output,
+                    duration_ms=node.duration_ms,
+                )
+
+        plan_aborted = False
+        concurrency_limit = plan.max_concurrency
+        if self.max_resource_concurrency is not None:
+            concurrency_limit = min(concurrency_limit, self.max_resource_concurrency)
+        max_workers = max(1, min(concurrency_limit, 16))
+
+        for layer in layers:
+            pending_in_layer = [
+                nid for nid in layer if plan.nodes[nid].status not in (TaskStatus.COMPLETED, TaskStatus.SKIPPED)
+            ]
+            if not pending_in_layer:
+                continue
+
+            if cancellation_token and cancellation_token.is_cancelled:
+                plan_aborted = True
+                for nid in pending_in_layer:
+                    node = plan.nodes[nid]
+                    node.status = TaskStatus.CANCELLED
+                    node_results[nid] = StepResult(node_id=nid, status=TaskStatus.CANCELLED, error=cancellation_token.reason)
+                    self.store.update_node(plan.id, nid, TaskStatus.CANCELLED, error=cancellation_token.reason)
+                break
+
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_to_node = {
+                    executor.submit(
+                        self._execute_node,
+                        plan.nodes[nid],
+                        context,
+                        cancellation_token,
+                    ): nid
+                    for nid in pending_in_layer
+                }
+
+                for future in as_completed(future_to_node):
+                    nid = future_to_node[future]
+                    res = future.result()
+                    node_results[nid] = res
+                    context[nid] = res.output
+
+                    self.store.update_node(
+                        plan_id=plan.id,
+                        node_id=nid,
+                        status=res.status,
+                        output=res.output,
+                        error=res.error,
+                        duration_ms=res.duration_ms,
+                    )
+                    node = plan.nodes[nid]
+                    self.budget_guard.record_step_cost(plan.id, node.cost_estimate)
+
+                    if res.status in (TaskStatus.FAILED, TaskStatus.CANCELLED):
+                        plan_aborted = True
+
+            if plan_aborted:
+                for remaining_layer in layers[layers.index(layer) + 1:]:
+                    for nid in remaining_layer:
+                        if plan.nodes[nid].status not in (TaskStatus.COMPLETED, TaskStatus.SKIPPED):
+                            node = plan.nodes[nid]
+                            node.status = TaskStatus.SKIPPED
+                            node_results[nid] = StepResult(node_id=nid, status=TaskStatus.SKIPPED, error="Aborted due to previous failure")
+                            self.store.update_node(plan.id, nid, TaskStatus.SKIPPED)
+                break
+
+        total_duration = (time.perf_counter() - start_plan_time) * 1000.0
+        completed = sum(1 for r in node_results.values() if r.status == TaskStatus.COMPLETED)
+        failed = sum(1 for r in node_results.values() if r.status == TaskStatus.FAILED)
+        cancelled = sum(1 for r in node_results.values() if r.status == TaskStatus.CANCELLED)
+
+        if cancelled > 0:
+            final_status = TaskStatus.CANCELLED
+        elif failed > 0:
+            final_status = TaskStatus.FAILED
+        else:
+            final_status = TaskStatus.COMPLETED
+
+        plan.status = final_status
+        self.store.save_plan(plan)
+
+        return PlanExecutionReport(
+            plan_id=plan.id,
+            status=final_status,
+            total_nodes=len(plan.nodes),
+            completed_nodes=completed,
+            failed_nodes=failed,
+            cancelled_nodes=cancelled,
+            total_cost=self.budget_guard.get_cumulative_spend(plan.id),
+            duration_ms=round(total_duration, 2),
+            node_results=node_results,
+        )

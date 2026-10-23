@@ -80,3 +80,9 @@ class BasePlanStore(ABC):
     ) -> None:
         """Updates the status and output of a specific node."""
         pass
+
+    @abstractmethod
+    def update_plan_status(self, plan_id: str, status: TaskStatus) -> None:
+        """Updates the status of an entire plan."""
+        pass
+

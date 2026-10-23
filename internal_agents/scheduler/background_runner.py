@@ -2,7 +2,7 @@
 
 import threading
 import time
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from ..core.interfaces import BaseAgentScheduler, BaseInternalAgent, BaseVisibleLogStore
 from ..core.models import (
     AgentLogEntry,
@@ -34,12 +34,27 @@ class BackgroundAgentScheduler(BaseAgentScheduler):
         with self._lock:
             self._agents[agent.agent_type] = agent
             self._intervals[agent.agent_type] = interval_seconds
+            if hasattr(self.visible_store, "save_schedule"):
+                try:
+                    self.visible_store.save_schedule(
+                        agent_type=agent.agent_type.value,
+                        interval_seconds=interval_seconds,
+                    )
+                except Exception:
+                    pass
 
     def trigger_cycle(self, agent_type: AgentType) -> AgentRunReport:
         agent = self._agents.get(agent_type)
         if not agent:
             raise ValueError(f"Agent '{agent_type.value}' is not registered with the scheduler")
-        return agent.run_cycle()
+        report = agent.run_cycle()
+        if hasattr(self.visible_store, "record_agent_run"):
+            try:
+                status = "success" if report.success else "failed"
+                self.visible_store.record_agent_run(agent_type.value, status=status)
+            except Exception:
+                pass
+        return report
 
     def trigger_all(self) -> List[AgentRunReport]:
         reports = []
@@ -47,10 +62,25 @@ class BackgroundAgentScheduler(BaseAgentScheduler):
             reports.append(self.trigger_cycle(agent_type))
         return reports
 
+    def get_persistent_schedules(self) -> List[Dict[str, Any]]:
+        """Retrieve persistent schedules across reboots."""
+        if hasattr(self.visible_store, "get_schedules"):
+            try:
+                return self.visible_store.get_schedules()
+            except Exception:
+                pass
+        return [
+            {"agent_type": a.value, "interval_seconds": self._intervals.get(a, 60.0), "enabled": True}
+            for a in self._agents.keys()
+        ]
+
     def _agent_loop(self, agent: BaseInternalAgent, interval: float) -> None:
         while not self._stop_event.is_set():
             try:
-                agent.run_cycle()
+                report = agent.run_cycle()
+                if hasattr(self.visible_store, "record_agent_run"):
+                    status = "success" if report.success else "failed"
+                    self.visible_store.record_agent_run(agent.agent_type.value, status=status)
             except Exception as e:
                 self.visible_store.append_log(
                     AgentLogEntry(

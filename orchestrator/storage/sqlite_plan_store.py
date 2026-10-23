@@ -210,3 +210,22 @@ class SQLitePlanStore(BasePlanStore):
             finally:
                 if self._memory_conn is None:
                     conn.close()
+
+    def update_plan_status(self, plan_id: str, status: TaskStatus) -> None:
+        now = utc_now().isoformat()
+        with self._lock:
+            conn = self._get_connection()
+            try:
+                conn.execute(
+                    """
+                    UPDATE orchestrator_plans
+                    SET status = ?, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (status.value, now, plan_id),
+                )
+                conn.commit()
+            finally:
+                if self._memory_conn is None:
+                    conn.close()
+

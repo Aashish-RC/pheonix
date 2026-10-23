@@ -31,7 +31,7 @@ class BrowserSessionRunner(BaseBrowserSessionRunner):
         self.current_url = "about:blank"
         self.page_title = "New Tab"
         self.history.clear()
-        self.dom_state.clear()
+        self.custom_dom_snippet: Optional[str] = None
         return self.profile
 
     def execute_action(self, action: BrowserAction) -> BrowserObservation:
@@ -55,8 +55,12 @@ class BrowserSessionRunner(BaseBrowserSessionRunner):
 
     def get_current_observation(self) -> BrowserObservation:
         dom_snippet = (
-            f"<html><head><title>{self.page_title}</title></head>"
-            f"<body><main url='{self.current_url}' state='{len(self.dom_state)} items'/></body></html>"
+            self.custom_dom_snippet
+            if self.custom_dom_snippet is not None
+            else (
+                f"<html><head><title>{self.page_title}</title></head>"
+                f"<body><main url='{self.current_url}' state='{len(self.dom_state)} items'/></body></html>"
+            )
         )
         return BrowserObservation(
             current_url=self.current_url,

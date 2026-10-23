@@ -95,47 +95,58 @@ def run_step(name: str, cmd: list[str], cwd: Path) -> tuple[bool, int, float]:
         print(f"[ERROR] {name} error: {e} in {duration:.2f}s")
         return False, 0, duration
 
+def get_python_executable() -> str:
+    """Finds the most suitable python executable (preferring workspace .venv)."""
+    venv_py_win = ROOT_DIR / ".venv" / "Scripts" / "python.exe"
+    if venv_py_win.exists():
+        return str(venv_py_win)
+    venv_py_nix = ROOT_DIR / ".venv" / "bin" / "python"
+    if venv_py_nix.exists():
+        return str(venv_py_nix)
+    return sys.executable
+
 def main():
     print("Starting Pheonix Unified Test Suite across all layers...")
     start_total = time.time()
+    py_bin = get_python_executable()
 
     steps = [
-        ("Component Registry (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "registry"),
-        ("Cryptographic Vault (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "vault"),
-        ("Auth & Identity (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "auth"),
-        ("Unified Audit Log (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "audit"),
-        ("Rules Layer (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "rules"),
-        ("Provider Activation (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "providers"),
+        ("Component Registry (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "registry"),
+        ("Cryptographic Vault (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "vault"),
+        ("Auth & Identity (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "auth"),
+        ("Unified Audit Log (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "audit"),
+        ("Rules Layer (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "rules"),
+        ("Provider Activation (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "providers"),
         ("Model Gateway (Vitest)", ["pnpm", "test"], ROOT_DIR / "model-gateway"),
-        ("Model Serving (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "serving"),
-        ("Observability (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "observability"),
-        ("Guardrails and Safety (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "guardrails"),
-        ("Subscription Tracker (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "tracker"),
-        ("Storage and Files (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "storage"),
-        ("Memory Engine (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "memory"),
-        ("Knowledge & Docs (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "knowledge"),
-        ("Global Search (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "search"),
-        ("Web Search & Verification (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "web_search"),
-        ("Canvas & Live Artifacts (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "canvas"),
-        ("Permission Modes (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "permissions"),
-        ("Orchestrator (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "orchestrator"),
-        ("Agent Sandboxes (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "sandboxes"),
-        ("Tool & MCP Registry (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "tools_mcp"),
-        ("Internal Agents (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "internal_agents"),
-        ("Empirical Recommender (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "recommender"),
-        ("Browser Automation (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "browser_automation"),
-        ("Agent Builder (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "agent_builder"),
-        ("Workflow Builder (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "workflow_builder"),
-        ("Skills & Plugin Packaging (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "skills_packaging"),
-        ("Notifications (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "notifications"),
-        ("Voice & Speech (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "voice_speech"),
-        ("Media Generation (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "media_gen"),
-        ("Translation (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "translation"),
-        ("Remote Access & Pairing (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "remote_access"),
-        ("State Sync Engine (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "sync_engine"),
-        ("Release Finishing & Update Channel (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "release_finishing"),
-        ("Resource Optimizer (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "resource_optimizer"),
-        ("Agent Layer (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "agent"),
+        ("Model Serving (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "serving"),
+        ("Observability (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "observability"),
+        ("Guardrails and Safety (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "guardrails"),
+        ("Subscription Tracker (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "tracker"),
+        ("Storage and Files (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "storage"),
+        ("Memory Engine (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "memory"),
+        ("Knowledge & Docs (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "knowledge"),
+        ("Global Search (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "search"),
+        ("Web Search & Verification (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "web_search"),
+        ("Canvas & Live Artifacts (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "canvas"),
+        ("Permission Modes (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "permissions"),
+        ("Orchestrator (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "orchestrator"),
+        ("Agent Sandboxes (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "sandboxes"),
+        ("Tool & MCP Registry (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "tools_mcp"),
+        ("Internal Agents (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "internal_agents"),
+        ("Empirical Recommender (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "recommender"),
+        ("Browser Automation (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "browser_automation"),
+        ("Agent Builder (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "agent_builder"),
+        ("Workflow Builder (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "workflow_builder"),
+        ("Skills & Plugin Packaging (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "skills_packaging"),
+        ("Notifications (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "notifications"),
+        ("Voice & Speech (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "voice_speech"),
+        ("Media Generation (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "media_gen"),
+        ("Translation (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "translation"),
+        ("Remote Access & Pairing (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "remote_access"),
+        ("State Sync Engine (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "sync_engine"),
+        ("Release Finishing & Update Channel (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "release_finishing"),
+        ("Resource Optimizer (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "resource_optimizer"),
+        ("Agent Layer (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "agent"),
     ]
 
     results = []
