@@ -1,5 +1,5 @@
 """SQLite-backed Note Store with project isolation, tags filtering, and auto-indexing."""
-
+from typing import Any
 import json
 from pathlib import Path
 import sqlite3

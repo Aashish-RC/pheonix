@@ -99,6 +99,7 @@ When any flag is off, the module is not imported at startup and its routes are n
 ### Routing & Resilience
 - **Dual Stream Failover**: Pre-first-byte abort & fallback timeout; post-first-byte explicit SSE error guarantees against duplicate tokens.
 - **Cooldown Tracking**: Automated cooldown tracking, circuit breaker, and escape routing to local runtimes (Ollama, llama.cpp, LocalAI).
+- **Local provider networking**: Local provider routes can reach RFC1918 private addresses (such as Docker Compose service IPs); reserved and link-local destinations remain blocked.
 - **Virtual Tiers**: Smart, fast, vision, and embedding routing tiers with load distribution and failover.
 
 ### Security & Privacy

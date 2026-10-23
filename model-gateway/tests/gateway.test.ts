@@ -64,6 +64,47 @@ describe('SSRFGuard (Clean-room Zero-Trust Security)', () => {
   });
 });
 
+describe('Local provider private-network routing', () => {
+  it('allows an Ollama route to a Docker-private address', async () => {
+    SSRFGuard.setResolver(createFakeDnsResolver({ ollama: ['172.20.0.5'] }));
+
+    const tracker = new CooldownTracker();
+    const router = new ModelRouter(tracker);
+    router.registerRoute({
+      alias: 'local-test',
+      targets: [{
+        id: 'ollama-target',
+        provider: 'ollama',
+        model: 'llama3.2:1b',
+        config: { id: 'ollama-config', name: 'Ollama', baseUrl: 'http://ollama:11434' }
+      }]
+    });
+
+    const engine = new GatewayEngine({ router, cooldownTracker: tracker });
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => new Response(JSON.stringify({
+      id: 'chatcmpl-local',
+      object: 'chat.completion',
+      created: 123456,
+      model: 'llama3.2:1b',
+      choices: [{ index: 0, message: { role: 'assistant', content: 'PONG' }, finish_reason: 'stop' }],
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 }
+    }), { status: 200, headers: { 'content-type': 'application/json' } })) as any;
+
+    try {
+      const response = await engine.chatCompletion({
+        model: 'local-test',
+        messages: [{ role: 'user', content: 'ping' }]
+      });
+
+      expect(response.choices[0].message.content).toBe('PONG');
+    } finally {
+      globalThis.fetch = originalFetch;
+      SSRFGuard.resetResolver();
+    }
+  });
+});
+
 describe('PricingEngine (Multi-Unit High-Precision Cost Calculation)', () => {
   it('accurately computes prompt, completion, and cache discounts', () => {
     const cost = PricingEngine.calculateCost('gpt-4o', {

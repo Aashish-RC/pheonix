@@ -264,7 +264,7 @@ export class GatewayEngine implements IGatewayEngine {
       // Validate URL against SSRF (W6)
       try {
         const isLocal = target.provider === 'ollama' || target.provider === 'localai' || target.provider === 'llama.cpp';
-        await SSRFGuard.validateUrl(upstreamReq.url, isLocal);
+        await SSRFGuard.validateUrl(upstreamReq.url, isLocal, undefined, isLocal);
       } catch (ssrfErr: any) {
         await this.emitAuditRecord({
           ctx,
@@ -554,7 +554,7 @@ export class GatewayEngine implements IGatewayEngine {
 
       try {
         const isLocal = target.provider === 'ollama' || target.provider === 'localai' || target.provider === 'llama.cpp';
-        await SSRFGuard.validateUrl(upstreamReq.url, isLocal);
+        await SSRFGuard.validateUrl(upstreamReq.url, isLocal, undefined, isLocal);
       } catch (ssrfErr: any) {
         await this.emitAuditRecord({
           ctx,

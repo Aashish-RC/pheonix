@@ -190,6 +190,23 @@ describe('SSRF Guard (Clean-Room Spec)', () => {
       await expect(SSRFGuard.validateUrl('http://192.168.1.50:8000', true, resolver)).rejects.toThrow();
       await expect(SSRFGuard.validateUrl('http://internal.lan:8000', true, resolver)).rejects.toThrow();
     });
+
+    it('permits private service addresses only when explicitly enabled', async () => {
+      const resolver = createFakeDnsResolver({
+        ollama: ['172.20.0.5'],
+        metadata: ['169.254.169.254']
+      });
+
+      await expect(
+        SSRFGuard.validateUrl('http://ollama:11434/v1', true, resolver, true)
+      ).resolves.not.toThrow();
+      await expect(
+        SSRFGuard.validateUrl('http://172.20.0.5:11434/v1', true, resolver, true)
+      ).resolves.not.toThrow();
+      await expect(
+        SSRFGuard.validateUrl('http://metadata/latest', true, resolver, true)
+      ).rejects.toThrow();
+    });
   });
 
   describe('Rule 8: Redirect Safety Validation', () => {

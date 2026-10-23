@@ -55,7 +55,8 @@ export class SSRFGuard {
   public static async validateUrl(
     urlString: string,
     allowLocalhost: boolean = false,
-    customResolver?: DnsResolver
+    customResolver?: DnsResolver,
+    allowPrivateNetwork: boolean = false
   ): Promise<void> {
     let parsed: URL;
     try {
@@ -89,7 +90,7 @@ export class SSRFGuard {
     const isDirectIp = SSRFGuard.isValidIpAddress(targetHost);
 
     if (isDirectIp) {
-      if (SSRFGuard.isPrivateOrReservedIp(targetHost, allowLocalhost)) {
+      if (SSRFGuard.isPrivateOrReservedIp(targetHost, allowLocalhost, allowPrivateNetwork)) {
         throw new Error(`SSRF Guard: Connection to private or reserved IP address '${targetHost}' is blocked.`);
       }
       return;
@@ -118,7 +119,7 @@ export class SSRFGuard {
     for (const record of records) {
       const address = record.address;
       const normalizedAddress = SSRFGuard.normalizeNumericIpv4(address) || address;
-      if (SSRFGuard.isPrivateOrReservedIp(normalizedAddress, allowLocalhost)) {
+      if (SSRFGuard.isPrivateOrReservedIp(normalizedAddress, allowLocalhost, allowPrivateNetwork)) {
         throw new Error(
           `SSRF Guard: Host '${targetHost}' resolved to private or reserved address '${address}'. Access denied.`
         );
@@ -130,7 +131,11 @@ export class SSRFGuard {
    * Rule 4: Evaluates whether an IP address belongs to loopback, private, link-local,
    * multicast, or reserved ranges.
    */
-  public static isPrivateOrReservedIp(ip: string, allowLocalhost: boolean): boolean {
+  public static isPrivateOrReservedIp(
+    ip: string,
+    allowLocalhost: boolean,
+    allowPrivateNetwork: boolean = false
+  ): boolean {
     let cleanIp = ip.trim();
     if (cleanIp.startsWith('[') && cleanIp.endsWith(']')) {
       cleanIp = cleanIp.slice(1, -1);
@@ -160,7 +165,7 @@ export class SSRFGuard {
 
         // Private 10.0.0.0/8
         if (o1 === 10) {
-          return true;
+          return !allowPrivateNetwork;
         }
 
         // Shared address space 100.64.0.0/10 (100.64.0.0 - 100.127.255.255)
@@ -175,12 +180,12 @@ export class SSRFGuard {
 
         // Private 172.16.0.0/12 (172.16.0.0 - 172.31.255.255)
         if (o1 === 172 && o2 >= 16 && o2 <= 31) {
-          return true;
+          return !allowPrivateNetwork;
         }
 
         // Private 192.168.0.0/16
         if (o1 === 192 && o2 === 168) {
-          return true;
+          return !allowPrivateNetwork;
         }
 
         // Multicast 224.0.0.0/4 (224.0.0.0 - 239.255.255.255)
