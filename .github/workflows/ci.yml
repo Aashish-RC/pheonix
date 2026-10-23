@@ -79,6 +79,10 @@ jobs:
         run: |
           ruff check --select F821 .
 
+      - name: Static Type Checking (Mypy)
+        run: |
+          mypy audit permissions rules storage search --follow-imports=silent
+
       - name: Check Architecture Status Drift
         run: |
           python scripts/generate_status.py --check

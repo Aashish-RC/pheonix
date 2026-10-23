@@ -31,7 +31,8 @@ class MeilisearchClient(BaseSearchEngine):
         timeout: float = 3.0,
         fallback_engine: Optional[BaseSearchEngine] = None,
     ):
-        self.url = (url or os.getenv("MEILISEARCH_URL", "http://localhost:7700")).rstrip("/")
+        raw_url = url or os.getenv("MEILISEARCH_URL") or "http://localhost:7700"
+        self.url = raw_url.rstrip("/")
         self.master_key = master_key or os.getenv("MEILISEARCH_MASTER_KEY", os.getenv("MEILISEARCH_API_KEY"))
         self.timeout = timeout
         self.fallback = fallback_engine or LocalHybridSearchEngine()

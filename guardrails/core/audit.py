@@ -68,6 +68,13 @@ class GuardrailAuditLogger:
         with self._lock:
             with open(self.log_path, "a", encoding="utf-8") as f:
                 f.write(line)
+            try:
+                max_mb = float(os.environ.get("LOG_MAX_MB", "10"))
+                if self.log_path.exists() and self.log_path.stat().st_size > max_mb * 1024 * 1024:
+                    from scripts.trim_logs import trim_log_file
+                    trim_log_file(self.log_path, max_mb=max_mb)
+            except Exception:
+                pass
 
         return event
 

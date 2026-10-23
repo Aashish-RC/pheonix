@@ -116,3 +116,23 @@ def test_storage_engine_with_s3_driver(tmp_path):
     downloaded = engine.download(stored.file_id)
     assert downloaded == content
 
+
+def test_s3_driver_unconfigured_client_raises():
+    driver = S3Driver(client=None)
+    driver._client = None
+    with pytest.raises(RuntimeError, match="boto3 client is not available"):
+        driver.read_blob("any-key")
+
+
+def test_s3_driver_key_normalization_and_traversal():
+    driver = S3Driver(client=FakeS3Client(), prefix="safe_prefix/")
+    # Traversal in key should be resolved strictly to basename
+    resolved = driver._resolve_key("../../etc/passwd")
+    assert resolved == "safe_prefix/passwd"
+
+
+def test_s3_driver_get_size_nonexistent():
+    driver = S3Driver(client=FakeS3Client())
+    size = driver.get_size("nonexistent_file.bin")
+    assert size == 0
+

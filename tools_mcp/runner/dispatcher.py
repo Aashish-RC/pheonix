@@ -61,18 +61,32 @@ class ToolDispatcher:
         try:
             # Route to appropriate backend
             if tool.tool_type == ToolType.BUILTIN:
-                handler = BUILTIN_HANDLERS.get(tool.name)
+                handler = BUILTIN_HANDLERS.get(tool.name) or self._custom_handlers.get(tool.name)
                 if not handler:
-                    raise NotImplementedError(f"Built-in handler for '{tool.name}' not implemented")
+                    duration_ms = (time.perf_counter() - start_time) * 1000.0
+                    return ToolResult(
+                        invocation_id=invocation.id,
+                        tool_name=tool.name,
+                        success=False,
+                        error=f"Built-in handler for '{tool.name}' is not registered",
+                        duration_ms=round(duration_ms, 2),
+                    )
                 output = handler(invocation.arguments)
 
             elif tool.tool_type == ToolType.MCP:
                 output = self.mcp_client.call_mcp_tool(tool.name, invocation.arguments)
 
             else:
-                handler = self._custom_handlers.get(tool.name)
+                handler = self._custom_handlers.get(tool.name) or BUILTIN_HANDLERS.get(tool.name)
                 if not handler:
-                    raise NotImplementedError(f"No execution handler registered for '{tool.name}'")
+                    duration_ms = (time.perf_counter() - start_time) * 1000.0
+                    return ToolResult(
+                        invocation_id=invocation.id,
+                        tool_name=tool.name,
+                        success=False,
+                        error=f"No execution handler registered for '{tool.name}'",
+                        duration_ms=round(duration_ms, 2),
+                    )
                 output = handler(invocation.arguments)
 
             duration_ms = (time.perf_counter() - start_time) * 1000.0

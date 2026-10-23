@@ -123,7 +123,123 @@ BUILTIN_TOOL_DEFS = [
             ToolParameter(name="task", type="string", description="Task instruction for the browser agent", required=False, default="Navigate to page"),
         ],
     ),
+    ToolDefinition(
+        name="file_read",
+        description="Reads the text content of a file from disk",
+        tool_type=ToolType.BUILTIN,
+        parameters=[
+            ToolParameter(name="path", type="string", description="Absolute or relative file path to read", required=True),
+        ],
+    ),
+    ToolDefinition(
+        name="file_write",
+        description="Writes text content to a file on disk",
+        tool_type=ToolType.BUILTIN,
+        parameters=[
+            ToolParameter(name="path", type="string", description="Destination file path", required=True),
+            ToolParameter(name="content", type="string", description="Text content to write", required=True),
+        ],
+    ),
+    ToolDefinition(
+        name="code_exec",
+        description="Executes code in an isolated sandbox environment",
+        tool_type=ToolType.BUILTIN,
+        parameters=[
+            ToolParameter(name="code", type="string", description="Source code to execute", required=True),
+            ToolParameter(name="language", type="string", description="Programming language ('python', 'shell')", required=False, default="python"),
+        ],
+    ),
+    ToolDefinition(
+        name="memory_recall",
+        description="Recalls context and user facts from the memory engine",
+        tool_type=ToolType.BUILTIN,
+        parameters=[
+            ToolParameter(name="query", type="string", description="Query to recall relevant memories", required=True),
+            ToolParameter(name="user_id", type="string", description="User ID", required=False, default="default"),
+            ToolParameter(name="tenant_id", type="string", description="Tenant ID", required=False, default="default"),
+        ],
+    ),
+    ToolDefinition(
+        name="text_translate",
+        description="Translates text between languages using the translation engine",
+        tool_type=ToolType.BUILTIN,
+        parameters=[
+            ToolParameter(name="text", type="string", description="Text to translate", required=True),
+            ToolParameter(name="target_lang", type="string", description="Target ISO language code (e.g. 'es', 'fr', 'de')", required=True),
+            ToolParameter(name="source_lang", type="string", description="Source ISO language code or 'auto'", required=False, default="auto"),
+        ],
+    ),
 ]
+
+
+def file_read_handler(args: Dict[str, Any]) -> str:
+    path_str = args.get("path", "")
+    from pathlib import Path
+    p = Path(path_str).resolve()
+    if not p.exists() or not p.is_file():
+        raise FileNotFoundError(f"File not found: {path_str}")
+    return p.read_text(encoding="utf-8", errors="replace")
+
+
+def file_write_handler(args: Dict[str, Any]) -> str:
+    path_str = args.get("path", "")
+    content = args.get("content", "")
+    from pathlib import Path
+    p = Path(path_str).resolve()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(content, encoding="utf-8")
+    return f"Successfully wrote {len(content)} characters to {path_str}"
+
+
+def code_exec_handler(args: Dict[str, Any]) -> Dict[str, Any]:
+    code = args.get("code", "")
+    language = args.get("language", "python")
+    try:
+        from sandboxes.manager import SandboxManager
+        from sandboxes.core.models import ExecutionRequest
+        mgr = SandboxManager()
+        req = ExecutionRequest(code=code, language=language)
+        res = mgr.execute(req)
+        return {
+            "stdout": res.stdout,
+            "stderr": res.stderr,
+            "exit_code": res.exit_code,
+            "duration_ms": res.duration_ms,
+        }
+    except Exception as e:
+        return {"stdout": "", "stderr": str(e), "exit_code": 1}
+
+
+def memory_recall_handler(args: Dict[str, Any]) -> Dict[str, Any]:
+    query = args.get("query", "")
+    user_id = args.get("user_id", "default")
+    tenant_id = args.get("tenant_id", "default")
+    try:
+        from memory.engine import MemoryEngine
+        engine = MemoryEngine()
+        pkg = engine.recall(user_id=user_id, query=query, tenant_id=tenant_id)
+        return {
+            "formatted_prompt": getattr(pkg, "formatted_prompt", ""),
+            "token_count": getattr(pkg, "token_count", 0),
+            "facts": [f.model_dump() for f in getattr(pkg, "core_facts", [])],
+        }
+    except Exception as e:
+        return {"error": str(e), "formatted_prompt": "", "facts": []}
+
+
+def text_translate_handler(args: Dict[str, Any]) -> str:
+    text = args.get("text", "")
+    target_lang = args.get("target_lang", "es")
+    source_lang = args.get("source_lang", "auto")
+    try:
+        from translation.engines.libre_engine import LibreTranslateEngine
+        from translation.core.models import TranslationRequest
+        engine = LibreTranslateEngine()
+        req = TranslationRequest(source_text=text, target_lang=target_lang, source_lang=source_lang)
+        res = engine.translate(req)
+        return res.translated_text
+    except Exception:
+        return f"[{target_lang}] {text}"
 
 
 def web_search_handler(args: Dict[str, Any]) -> Any:
@@ -182,4 +298,9 @@ BUILTIN_HANDLERS = {
     "current_timestamp": timestamp_handler,
     "web_search": web_search_handler,
     "browser_automation": browser_automation_handler,
+    "file_read": file_read_handler,
+    "file_write": file_write_handler,
+    "code_exec": code_exec_handler,
+    "memory_recall": memory_recall_handler,
+    "text_translate": text_translate_handler,
 }

@@ -104,6 +104,11 @@ class TelemetryCollector:
                 try:
                     with open(self.log_path, "a", encoding="utf-8") as f:
                         f.write(span.model_dump_json() + "\n")
+                    # Enforce size ceiling
+                    max_mb = float(os.environ.get("LOG_MAX_MB", "10"))
+                    if self.log_path.exists() and self.log_path.stat().st_size > max_mb * 1024 * 1024:
+                        from scripts.trim_logs import trim_log_file
+                        trim_log_file(self.log_path, max_mb=max_mb)
                 except Exception:
                     pass
 

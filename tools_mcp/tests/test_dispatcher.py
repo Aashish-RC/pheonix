@@ -63,3 +63,42 @@ def test_unknown_tool_error(dispatcher):
     res = dispatcher.dispatch(inv)
     assert res.success is False
     assert "not registered" in res.error
+
+
+def test_builtin_file_read_write(dispatcher, tmp_path):
+    f = tmp_path / "test_mcp.txt"
+    inv_write = ToolInvocation(
+        tool_name="file_write",
+        arguments={"path": str(f), "content": "Hello from MCP dispatcher!"},
+    )
+    res_write = dispatcher.dispatch(inv_write)
+    assert res_write.success is True
+    assert "Successfully wrote" in res_write.output
+
+    inv_read = ToolInvocation(
+        tool_name="file_read",
+        arguments={"path": str(f)},
+    )
+    res_read = dispatcher.dispatch(inv_read)
+    assert res_read.success is True
+    assert res_read.output == "Hello from MCP dispatcher!"
+
+
+def test_builtin_text_translate(dispatcher):
+    inv = ToolInvocation(
+        tool_name="text_translate",
+        arguments={"text": "Hello world", "target_lang": "es"},
+    )
+    res = dispatcher.dispatch(inv)
+    assert res.success is True
+    assert len(res.output) > 0
+
+
+def test_builtin_code_exec(dispatcher):
+    inv = ToolInvocation(
+        tool_name="code_exec",
+        arguments={"code": "print(2 + 3)", "language": "python"},
+    )
+    res = dispatcher.dispatch(inv)
+    assert res.success is True
+    assert "stdout" in res.output

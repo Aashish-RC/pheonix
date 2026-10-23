@@ -9,7 +9,7 @@ from ..core.models import ExecutionRequest
 BLOCKED_CODE_PATTERNS: List[Pattern] = [
     re.compile(r"\bctypes\b"),
     re.compile(r"(?:/etc/shadow|/etc/passwd|SAM|SYSTEM32[\/\\]config)", re.IGNORECASE),
-    re.compile(r"(?:^|[\/\\])(?:\.vault_key|id_rsa|id_ed25519)(?:$|[\/\\])", re.IGNORECASE),
+    re.compile(r"(?:^|[\/\\\'\"\s])(?:\.vault_key|id_rsa|id_ed25519)(?:$|[\/\\\'\"\s])", re.IGNORECASE),
 ]
 
 BLOCKED_NETWORK_PATTERNS: List[Pattern] = [
