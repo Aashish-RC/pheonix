@@ -68,7 +68,13 @@ class AuthManager:
     def is_user_registered(self) -> bool:
         return self._user is not None
 
-    def register_initial_user(self, username: str, password: str) -> UserRecord:
+    def register_initial_user(
+        self,
+        username: str,
+        password: str,
+        tenant_id: str = "default",
+        role: str = "owner",
+    ) -> UserRecord:
         """Register the primary local owner/user."""
         if self._user is not None:
             raise ValueError("Single-user model: User already registered. Reset required to register new owner.")
@@ -79,9 +85,25 @@ class AuthManager:
             username=username,
             password_hash=pwd_hash,
             salt=salt,
+            tenant_id=tenant_id,
+            role=role,
             created_at=time.time(),
         )
         self._user = user
+        try:
+            from audit.client import get_audit_logger
+            get_audit_logger().record(
+                module="auth",
+                action="user_registered",
+                tenant_id=tenant_id,
+                user_id=user.user_id,
+                role=role,
+                resource=username,
+                status="success",
+                details={"username": username},
+            )
+        except Exception:
+            pass
         return user
 
     def authenticate(
@@ -133,6 +155,9 @@ class AuthManager:
 
         # Issue signed cryptographic session token
         session_id = f"sess_{uuid.uuid4().hex[:16]}"
+        tenant_id = getattr(self._user, "tenant_id", "default")
+        role = getattr(self._user, "role", "user")
+
         if self._vault_manager:
             token_str, iat, exp = create_session_token_with_vault(
                 session_id=session_id,
@@ -141,6 +166,8 @@ class AuthManager:
                 ttl_seconds=ttl_seconds,
                 vault_manager=self._vault_manager,
                 key_id=self._vault_key_id,
+                tenant_id=tenant_id,
+                role=role,
             )
         else:
             token_str, iat, exp = create_session_token(
@@ -149,24 +176,44 @@ class AuthManager:
                 device_id=device_id,
                 ttl_seconds=ttl_seconds,
                 signing_key=self._signing_key,
+                tenant_id=tenant_id,
+                role=role,
             )
 
         self._sessions[session_id] = {
             "session_id": session_id,
             "user_id": self._user.user_id,
             "device_id": device_id,
+            "tenant_id": tenant_id,
+            "role": role,
             "issued_at": iat,
             "expires_at": exp,
             "is_active": True,
         }
 
         self._user.last_login_at = time.time()
+        try:
+            from audit.client import get_audit_logger
+            get_audit_logger().record(
+                module="auth",
+                action="login",
+                tenant_id=tenant_id,
+                user_id=self._user.user_id,
+                role=role,
+                resource=device_id,
+                status="success",
+                details={"device_name": device_name, "platform": platform},
+            )
+        except Exception:
+            pass
 
         return SessionToken(
             token_string=token_str,
             session_id=session_id,
             user_id=self._user.user_id,
             device_id=device_id,
+            tenant_id=tenant_id,
+            role=role,
             issued_at=iat,
             expires_at=exp,
         )

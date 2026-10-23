@@ -152,6 +152,7 @@ class MeilisearchClient(BaseSearchEngine):
                     all_results.sort(key=lambda r: r.rrf_score, reverse=True)
                     return SearchResponse(
                         query=query.query_text,
+                        tenant_id=query.tenant_id,
                         project_id=query.project_id,
                         total_hits=len(all_results),
                         results=all_results[:query.limit],

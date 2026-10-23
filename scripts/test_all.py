@@ -103,6 +103,7 @@ def main():
         ("Component Registry (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "registry"),
         ("Cryptographic Vault (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "vault"),
         ("Auth & Identity (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "auth"),
+        ("Unified Audit Log (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "audit"),
         ("Rules Layer (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "rules"),
         ("Provider Activation (Pytest)", [sys.executable, "-m", "pytest", "tests/"], ROOT_DIR / "providers"),
         ("Model Gateway (Vitest)", ["pnpm", "test"], ROOT_DIR / "model-gateway"),

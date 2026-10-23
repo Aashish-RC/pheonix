@@ -42,6 +42,7 @@ class ContextSynthesizer:
         working_turns: List[Turn],
         core_facts: List[FactItem],
         archival_memories: List[MemoryRecord],
+        tenant_id: str = "default",
     ) -> ContextPackage:
         """Constructs an optimized, token-bounded context string."""
         # Section 1: Active Core Facts (Tier 2) - Priority 1
@@ -96,6 +97,7 @@ class ContextSynthesizer:
         final_token_count = self.count_tokens(candidate_prompt)
 
         return ContextPackage(
+            tenant_id=tenant_id,
             user_id=user_id,
             session_id=session_id,
             working_memory=working_turns,

@@ -42,6 +42,7 @@ class SQLiteAuditStore(BaseAuditStore):
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS permission_audit (
                     id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL DEFAULT 'default',
                     project_id TEXT NOT NULL DEFAULT 'default',
                     mode TEXT NOT NULL,
                     actor_id TEXT NOT NULL,
@@ -52,6 +53,10 @@ class SQLiteAuditStore(BaseAuditStore):
                     reason TEXT,
                     timestamp TEXT NOT NULL
                 );
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_audit_tenant
+                ON permission_audit(tenant_id);
             """)
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_audit_project
@@ -72,11 +77,12 @@ class SQLiteAuditStore(BaseAuditStore):
                 conn.execute(
                     """
                     INSERT INTO permission_audit (
-                        id, project_id, mode, actor_id, action_type, resource, status, decided_by, reason, timestamp
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        id, tenant_id, project_id, mode, actor_id, action_type, resource, status, decided_by, reason, timestamp
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         entry.id,
+                        getattr(entry, "tenant_id", "default"),
                         entry.project_id,
                         entry.mode.value if hasattr(entry.mode, "value") else str(entry.mode),
                         entry.actor_id,
@@ -93,13 +99,23 @@ class SQLiteAuditStore(BaseAuditStore):
                 if self._memory_conn is None:
                     conn.close()
 
-    def query(self, project_id: Optional[str] = None, limit: int = 50) -> List[AuditEntry]:
-        query_sql = "SELECT * FROM permission_audit"
+    def query(
+        self,
+        project_id: Optional[str] = None,
+        limit: int = 50,
+        tenant_id: Optional[str] = None,
+    ) -> List[AuditEntry]:
+        conditions = []
         params: list = []
+        if tenant_id:
+            conditions.append("tenant_id = ?")
+            params.append(tenant_id)
         if project_id:
-            query_sql += " WHERE project_id = ?"
+            conditions.append("project_id = ?")
             params.append(project_id)
-        query_sql += " ORDER BY timestamp DESC LIMIT ?"
+        
+        where_clause = f" WHERE {' AND '.join(conditions)}" if conditions else ""
+        query_sql = f"SELECT * FROM permission_audit{where_clause} ORDER BY timestamp DESC LIMIT ?"
         params.append(limit)
 
         with self._lock:
@@ -109,9 +125,11 @@ class SQLiteAuditStore(BaseAuditStore):
                 rows = cur.fetchall()
                 entries = []
                 for r in rows:
+                    row_keys = r.keys()
                     entries.append(
                         AuditEntry(
                             id=r["id"],
+                            tenant_id=r["tenant_id"] if "tenant_id" in row_keys else "default",
                             project_id=r["project_id"],
                             mode=PermissionMode(r["mode"]),
                             actor_id=r["actor_id"],

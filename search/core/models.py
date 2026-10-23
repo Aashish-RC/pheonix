@@ -25,6 +25,7 @@ class SearchDocument(BaseModel):
 
     id: str = Field(..., description="Unique composite identifier, e.g. 'note:uuid'")
     corpus_type: CorpusType = Field(..., description="Domain corpus entity type")
+    tenant_id: str = Field(default="default", description="Strict tenant boundary")
     project_id: str = Field(default="default", description="Strict workspace/project boundary")
     title: str = Field(..., description="Document or asset title")
     content: str = Field(default="", description="Searchable textual body")
@@ -39,6 +40,7 @@ class SearchQuery(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     query_text: str = Field(..., min_length=1, description="Natural language or keyword query")
+    tenant_id: str = Field(default="default", description="Tenant isolation boundary")
     project_id: str = Field(default="default", description="Workspace isolation boundary")
     corpus_types: Optional[List[CorpusType]] = Field(default=None, description="Filter by corpora")
     tags: Optional[List[str]] = Field(default=None, description="Filter by tags (OR matching)")
@@ -67,6 +69,7 @@ class SearchResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     query: str
+    tenant_id: str = Field(default="default", description="Tenant isolation boundary")
     project_id: str
     total_hits: int
     results: List[SearchResult]

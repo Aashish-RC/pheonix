@@ -35,6 +35,7 @@ class MemoryRecord(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     id: UUID = Field(default_factory=uuid4, description="Unique memory record UUID")
+    tenant_id: str = Field(default="default", description="Tenant scope identifier")
     user_id: str = Field(..., description="Unique identifier for the user/agent owner")
     project_id: str = Field(default="default", description="Project scope identifier")
     session_id: Optional[str] = Field(default=None, description="Source session ID if applicable")
@@ -54,6 +55,7 @@ class FactItem(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     id: UUID = Field(default_factory=uuid4, description="Unique fact UUID")
+    tenant_id: str = Field(default="default", description="Tenant scope identifier")
     user_id: str = Field(..., description="Owner user ID")
     project_id: str = Field(default="default", description="Project scope identifier")
     key: str = Field(..., description="Normalized lookup key (e.g. 'preferred_language', 'location')")
@@ -75,6 +77,7 @@ class Turn(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     id: UUID = Field(default_factory=uuid4, description="Turn UUID")
+    tenant_id: str = Field(default="default", description="Tenant scope identifier")
     session_id: str = Field(..., description="Session identifier")
     user_id: str = Field(..., description="User identifier")
     project_id: str = Field(default="default", description="Project scope identifier")
@@ -90,6 +93,7 @@ class SessionState(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     session_id: str = Field(..., description="Session identifier")
+    tenant_id: str = Field(default="default", description="Tenant scope identifier")
     user_id: str = Field(..., description="User identifier")
     turns: List[Turn] = Field(default_factory=list, description="Working conversation window")
     created_at: datetime = Field(default_factory=utc_now)
@@ -101,6 +105,7 @@ class ContextPackage(BaseModel):
     """Concentrated prompt injection context (< 500 tokens)."""
     model_config = ConfigDict(extra="ignore")
 
+    tenant_id: str = Field(default="default", description="Tenant scope identifier")
     user_id: str = Field(..., description="Target user ID")
     session_id: Optional[str] = Field(default=None, description="Active session ID")
     working_memory: List[Turn] = Field(default_factory=list, description="Tier 1 recent turns")

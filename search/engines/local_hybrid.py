@@ -310,6 +310,7 @@ class LocalHybridSearchEngine(BaseSearchEngine):
 
         return SearchResponse(
             query=query.query_text,
+            tenant_id=query.tenant_id,
             project_id=query.project_id,
             total_hits=len(fused_results),
             results=fused_results,

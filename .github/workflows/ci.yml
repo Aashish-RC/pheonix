@@ -98,6 +98,11 @@ jobs:
           cd auth
           python -m pytest tests/
 
+      - name: Run Unified Cross-Module Audit Tests (Pytest)
+        run: |
+          cd audit
+          python -m pytest tests/
+
       - name: Run Rules Layer Tests (Pytest)
         run: |
           cd rules

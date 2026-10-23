@@ -83,6 +83,7 @@ class PermissionService:
         # Record evaluation audit entry
         self.audit_store.log(
             AuditEntry(
+                tenant_id=getattr(request, "tenant_id", "default"),
                 project_id=request.project_id,
                 mode=active_mode,
                 actor_id=request.actor_id,
@@ -94,6 +95,25 @@ class PermissionService:
                 timestamp=utc_now(),
             )
         )
+        try:
+            from audit.client import get_audit_logger
+            get_audit_logger().record(
+                module="permissions",
+                action="evaluate_request",
+                tenant_id=getattr(request, "tenant_id", "default"),
+                project_id=request.project_id,
+                user_id=request.actor_id,
+                role="agent" if request.actor_id == "agent" else "user",
+                resource=request.resource,
+                status=decision.status.value if hasattr(decision.status, "value") else str(decision.status),
+                details={
+                    "request_id": request.id,
+                    "action_type": request.action_type.value if hasattr(request.action_type, "value") else str(request.action_type),
+                    "reason": decision.reason,
+                },
+            )
+        except Exception:
+            pass
         return decision
 
     def approve_action(
@@ -102,11 +122,13 @@ class PermissionService:
         approver: str = "human",
         reason: Optional[str] = None,
         project_id: str = "default",
+        tenant_id: str = "default",
     ) -> ApprovalDecision:
         """Explicitly approves a pending request in the queue and records audit log."""
         decision = self.queue.approve(request_id, approver=approver, reason=reason)
         self.audit_store.log(
             AuditEntry(
+                tenant_id=tenant_id,
                 project_id=project_id,
                 mode=self.mode,
                 actor_id=approver,
@@ -126,11 +148,13 @@ class PermissionService:
         approver: str = "human",
         reason: Optional[str] = None,
         project_id: str = "default",
+        tenant_id: str = "default",
     ) -> ApprovalDecision:
         """Explicitly rejects a pending request in the queue and records audit log."""
         decision = self.queue.reject(request_id, approver=approver, reason=reason)
         self.audit_store.log(
             AuditEntry(
+                tenant_id=tenant_id,
                 project_id=project_id,
                 mode=self.mode,
                 actor_id=approver,
@@ -148,6 +172,11 @@ class PermissionService:
         """Returns all actions awaiting human-in-the-loop sign-off."""
         return self.queue.get_pending(project_id)
 
-    def get_audit_trail(self, project_id: Optional[str] = None, limit: int = 50) -> List[AuditEntry]:
+    def get_audit_trail(
+        self,
+        project_id: Optional[str] = None,
+        limit: int = 50,
+        tenant_id: Optional[str] = None,
+    ) -> List[AuditEntry]:
         """Retrieves tamper-resistant audit logs."""
-        return self.audit_store.query(project_id=project_id, limit=limit)
+        return self.audit_store.query(project_id=project_id, limit=limit, tenant_id=tenant_id)

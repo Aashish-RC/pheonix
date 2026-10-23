@@ -111,6 +111,7 @@ class MemoryEngine:
         role: TurnRole = TurnRole.USER,
         project_id: str = "default",
         metadata: Optional[Dict[str, Any]] = None,
+        tenant_id: str = "default",
     ) -> Dict[str, Any]:
         """Record an incoming agent/user interaction into the memory hierarchy.
         
@@ -157,6 +158,7 @@ class MemoryEngine:
         if session_id:
             turn = Turn(
                 id=event_id,
+                tenant_id=tenant_id,
                 session_id=session_id,
                 user_id=user_id,
                 project_id=project_id,
@@ -176,6 +178,7 @@ class MemoryEngine:
             for fact in plan.facts_to_add:
                 fact.source_event_id = event_id
                 fact.project_id = project_id
+                fact.tenant_id = tenant_id
             saved_facts = self.resolver.resolve_and_apply(
                 candidate_facts=plan.facts_to_add,
                 keys_to_invalidate=plan.keys_to_invalidate,
@@ -187,6 +190,7 @@ class MemoryEngine:
             emb = self.embedder.embed_text(plan.archival_text)
             archival_record = MemoryRecord(
                 id=event_id,
+                tenant_id=tenant_id,
                 user_id=user_id,
                 project_id=project_id,
                 session_id=session_id,
@@ -203,6 +207,7 @@ class MemoryEngine:
 
         return {
             "event_id": str(event_id),
+            "tenant_id": tenant_id,
             "user_id": user_id,
             "project_id": project_id,
             "session_id": session_id,
@@ -218,6 +223,7 @@ class MemoryEngine:
         session_id: Optional[str] = None,
         project_id: Optional[str] = None,
         top_k: Optional[int] = None,
+        tenant_id: str = "default",
     ) -> ContextPackage:
         """Recall concentrated context (< 500 tokens) for system prompt injection.
         
@@ -260,6 +266,7 @@ class MemoryEngine:
             working_turns=working_turns,
             core_facts=core_facts,
             archival_memories=archival_hits,
+            tenant_id=tenant_id,
         )
 
         # Task 1.2: Telemetry emission for memory retrieval
@@ -273,7 +280,7 @@ class MemoryEngine:
                 duration_ms=duration_ms,
                 status_code=200,
                 token_usage={"total_tokens": token_count, "prompt_tokens": token_count, "completion_tokens": 0},
-                metadata={"user_id": user_id, "facts_count": len(getattr(result, "facts", []))},
+                metadata={"user_id": user_id, "tenant_id": tenant_id, "facts_count": len(getattr(result, "facts", []))},
             )
         except Exception:
             pass

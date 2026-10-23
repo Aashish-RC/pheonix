@@ -12,6 +12,8 @@ class UserRecord(BaseModel):
     username: str
     password_hash: str
     salt: str
+    tenant_id: str = "default"
+    role: str = "user"  # "owner" | "admin" | "user" | "viewer"
     created_at: float = Field(default_factory=time.time)
     last_login_at: Optional[float] = None
 
@@ -21,6 +23,8 @@ class DeviceInfo(BaseModel):
     device_name: str
     platform: str
     fingerprint: str
+    tenant_id: str = "default"
+    user_id: Optional[str] = None
     first_seen_at: float = Field(default_factory=time.time)
     last_active_at: float = Field(default_factory=time.time)
     is_trusted: bool = True
@@ -33,6 +37,8 @@ class SessionToken(BaseModel):
     session_id: str
     user_id: str
     device_id: str
+    tenant_id: str = "default"
+    role: str = "user"
     issued_at: float
     expires_at: float
 
@@ -43,6 +49,8 @@ class SessionInfo(BaseModel):
     device_id: str
     device_name: str
     platform: str
+    tenant_id: str = "default"
+    role: str = "user"
     issued_at: float
     expires_at: float
     is_active: bool

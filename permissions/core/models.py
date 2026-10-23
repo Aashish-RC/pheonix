@@ -69,6 +69,7 @@ class ActionRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     id: str = Field(default_factory=lambda: str(uuid4()))
+    tenant_id: str = "default"
     project_id: str = "default"
     actor_id: str = "agent"
     action_type: ActionType
@@ -83,6 +84,7 @@ class ApprovalDecision(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     request_id: str
+    tenant_id: str = "default"
     status: ApprovalStatus
     decided_by: str = "system"
     reason: Optional[str] = None
@@ -94,6 +96,7 @@ class AuditEntry(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     id: str = Field(default_factory=lambda: str(uuid4()))
+    tenant_id: str = "default"
     project_id: str = "default"
     mode: PermissionMode
     actor_id: str

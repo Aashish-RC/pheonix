@@ -77,17 +77,42 @@ class KeyStoreManager:
         if not self._unlocked_passphrase or self._cached_data is None:
             raise PermissionError("Vault is locked. Call unlock(passphrase) first.")
 
-    def _persist(self, action: str, key_id: Optional[str] = None, details: Optional[str] = None):
+    def _persist(
+        self,
+        action: str,
+        key_id: Optional[str] = None,
+        details: Optional[str] = None,
+        tenant_id: str = "default",
+        user_id: Optional[str] = None,
+        role: str = "user",
+    ):
         with self._lock:
             audit_entry = {
                 "timestamp": time.time(),
                 "action": action,
                 "key_id": key_id,
+                "tenant_id": tenant_id,
+                "user_id": user_id,
+                "role": role,
                 "success": True,
                 "details": details,
             }
             self._cached_data["audit"].append(audit_entry)
             self.store.save_vault(self._cached_data, self._unlocked_passphrase)
+            try:
+                from audit.client import get_audit_logger
+                get_audit_logger().record(
+                    module="vault",
+                    action=action.lower(),
+                    tenant_id=tenant_id,
+                    user_id=user_id,
+                    role=role,
+                    resource=key_id or "vault",
+                    status="success",
+                    details={"details": details} if details else {},
+                )
+            except Exception:
+                pass
 
     def put_secret(
         self,
@@ -96,6 +121,8 @@ class KeyStoreManager:
         provider: str = "custom",
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
+        tenant_id: str = "default",
+        user_id: Optional[str] = None,
     ):
         """Store or update a secret in the encrypted vault."""
         with self._lock:
@@ -106,6 +133,8 @@ class KeyStoreManager:
             meta = SecretMetadata(
                 key_id=key_id,
                 provider=provider,
+                tenant_id=tenant_id,
+                user_id=user_id,
                 description=description,
                 tags=tags or [],
                 created_at=existing["metadata"]["created_at"] if existing else now,
@@ -119,7 +148,13 @@ class KeyStoreManager:
                 "metadata": meta.model_dump(),
                 "value": secret,
             }
-            self._persist("PUT", key_id=key_id, details=f"Provider: {provider}")
+            self._persist(
+                "PUT",
+                key_id=key_id,
+                details=f"Provider: {provider}",
+                tenant_id=tenant_id,
+                user_id=user_id,
+            )
 
     def get_lease(self, key_id: str, ttl_seconds: float = 60.0) -> SecretLease:
         """
@@ -140,7 +175,13 @@ class KeyStoreManager:
 
             secret_str = secret_entry["value"]
             lease = SecretLease(key_id, secret_str.encode("utf-8"), ttl_seconds=ttl_seconds)
-            self._persist("GET", key_id=key_id, details=f"Lease granted for {ttl_seconds}s")
+            self._persist(
+                "GET",
+                key_id=key_id,
+                details=f"Lease granted for {ttl_seconds}s",
+                tenant_id=meta.get("tenant_id", "default"),
+                user_id=meta.get("user_id"),
+            )
             return lease
 
     def has_secret(self, key_id: str) -> bool:
@@ -151,13 +192,22 @@ class KeyStoreManager:
             return False
         return not entry["metadata"].get("revoked", False)
 
-    def list_secrets(self) -> List[SecretMetadata]:
-        """List metadata of all stored secrets without exposing secret values."""
+    def list_secrets(
+        self,
+        tenant_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+    ) -> List[SecretMetadata]:
+        """List metadata of all stored secrets with optional tenant and per-user filtering."""
         self._ensure_unlocked()
-        return [
+        results = [
             SecretMetadata(**entry["metadata"])
             for entry in self._cached_data["secrets"].values()
         ]
+        if tenant_id is not None:
+            results = [s for s in results if s.tenant_id == tenant_id]
+        if user_id is not None:
+            results = [s for s in results if s.user_id == user_id]
+        return results
 
     def revoke_secret(self, key_id: str, reason: Optional[str] = None) -> bool:
         """

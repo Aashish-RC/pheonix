@@ -26,6 +26,8 @@ def create_session_token(
     device_id: str,
     ttl_seconds: float,
     signing_key: bytes,
+    tenant_id: str = "default",
+    role: str = "user",
 ) -> Tuple[str, float, float]:
     """
     Generate an HMAC-SHA256 signed session token string.
@@ -39,6 +41,8 @@ def create_session_token(
         "sid": session_id,
         "uid": user_id,
         "did": device_id,
+        "tid": tenant_id,
+        "role": role,
         "iat": now,
         "exp": expires_at,
     }
@@ -92,6 +96,8 @@ def create_session_token_with_vault(
     ttl_seconds: float,
     vault_manager: Any,
     key_id: str = "auth_session_signing_key",
+    tenant_id: str = "default",
+    role: str = "user",
 ) -> Tuple[str, float, float]:
     """
     Generate an HMAC-SHA256 signed session token string using a key leased from the Vault.
@@ -110,6 +116,8 @@ def create_session_token_with_vault(
             device_id=device_id,
             ttl_seconds=ttl_seconds,
             signing_key=signing_key,
+            tenant_id=tenant_id,
+            role=role,
         )
     finally:
         lease.release()

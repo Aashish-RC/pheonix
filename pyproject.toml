@@ -56,7 +56,7 @@ all = [
 [tool.setuptools.packages.find]
 where = ["."]
 include = [
-    "agent*", "agent_builder*", "auth*", "browser_automation*", "canvas*",
+    "agent*", "agent_builder*", "audit*", "auth*", "browser_automation*", "canvas*",
     "guardrails*", "internal_agents*", "knowledge*", "media_gen*", "memory*",
     "notifications*", "observability*", "orchestrator*", "permissions*",
     "providers*", "recommender*", "registry*", "release_finishing*",
@@ -68,6 +68,7 @@ include = [
 exclude = ["tests*", "model-gateway*"]
 
 [tool.pytest.ini_options]
+pythonpath = ["."]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 python_files = "test_*.py"

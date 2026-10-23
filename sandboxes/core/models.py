@@ -51,6 +51,7 @@ class ExecutionRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     id: str = Field(default_factory=lambda: str(uuid4()))
+    tenant_id: str = "default"
     project_id: str = "default"
     language: str = "python"  # 'python' | 'shell'
     code: str
@@ -64,6 +65,7 @@ class SandboxResult(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     request_id: str
+    tenant_id: str = "default"
     status: SandboxStatus
     exit_code: int = 0
     stdout: str = ""

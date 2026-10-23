@@ -45,6 +45,7 @@ class Note(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     id: UUID = Field(default_factory=uuid4)
+    tenant_id: str = Field(default="default", description="Tenant scope identifier")
     project_id: str = Field(default="default", description="Workspace or project isolation boundary")
     title: str = Field(..., description="Unique title within the project")
     slug: str = Field(default="", description="URL/link friendly identifier")
@@ -75,6 +76,7 @@ class Notebook(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     id: UUID = Field(default_factory=uuid4)
+    tenant_id: str = Field(default="default", description="Tenant scope identifier")
     project_id: str = Field(default="default", description="Project isolation boundary")
     title: str = Field(..., description="Notebook title")
     description: Optional[str] = Field(default=None)
