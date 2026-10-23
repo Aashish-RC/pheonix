@@ -63,7 +63,14 @@ class SpeechSynthesizer(BaseSpeechSynthesizer):
             close_client = self.http_client is None
             try:
                 resp = client.post(f"{self.gateway_url}/v1/audio/speech", json=payload)
-                if resp.status_code == 200 and len(resp.content) > 0:
+                has_valid_audio = bool(resp.content)
+                if request.audio_format == AudioFormat.WAV:
+                    has_valid_audio = (
+                        len(resp.content) > 44
+                        and resp.content[:4] == b"RIFF"
+                        and resp.content[8:12] == b"WAVE"
+                    )
+                if resp.status_code == 200 and has_valid_audio:
                     word_count = len(request.text.split())
                     duration = max(0.4, round((word_count / 2.5) / max(0.5, request.speed), 2))
                     return SpeechSynthesisResult(
@@ -72,8 +79,7 @@ class SpeechSynthesizer(BaseSpeechSynthesizer):
                         duration_seconds=duration,
                         sample_rate=24000,
                     )
-                elif self.http_client is not None:
-                    # In mock/test mode, bubble up error
+                elif self.http_client is not None and resp.status_code != 200:
                     resp.raise_for_status()
             finally:
                 if close_client:

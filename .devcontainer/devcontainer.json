@@ -13,7 +13,9 @@
     7700,
     8025,
     11434,
-    3001
+    3001,
+    3002,
+    3005
   ],
   "portsAttributes": {
     "4000": {
@@ -35,6 +37,18 @@
     "11434": {
       "label": "Ollama Local LLM",
       "onAutoForward": "silent"
+    },
+    "3001": {
+      "label": "Novu API",
+      "onAutoForward": "notify"
+    },
+    "3002": {
+      "label": "Novu WebSocket",
+      "onAutoForward": "silent"
+    },
+    "3005": {
+      "label": "Novu Dashboard",
+      "onAutoForward": "notify"
     }
   },
   "postCreateCommand": "bash -c 'if [ ! -f .env ]; then cp .env.example .env; fi && pip install -e \".[all]\" && pnpm --dir model-gateway install'",

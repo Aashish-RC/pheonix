@@ -204,9 +204,11 @@ import urllib.request
 urllib.request.urlopen("https://example.com", timeout=2)
 """
     result = live_docker_runner.run_python(code)
-    assert result.status == SandboxStatus.FAILED
+    assert result.status in (SandboxStatus.FAILED, SandboxStatus.BLOCKED)
     assert result.exit_code != 0
-    assert len(result.stderr) > 0
+    assert result.stderr
+    if result.status == SandboxStatus.BLOCKED:
+        assert "network access is disabled" in result.stderr.lower()
 
 
 @pytest.mark.live

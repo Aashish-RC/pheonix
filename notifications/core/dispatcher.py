@@ -23,12 +23,14 @@ class NovuBackend:
     def __init__(
         self,
         api_key: Optional[str] = None,
-        backend_url: str = "https://api.novu.co",
+        backend_url: Optional[str] = None,
         timeout: float = 5.0,
         inbox_store: Optional[InboxStore] = None,
     ):
         self.api_key = api_key or os.getenv("NOVU_API_KEY")
-        self.backend_url = (backend_url or "https://api.novu.co").rstrip("/")
+        self.backend_url = (
+            backend_url or os.getenv("NOVU_BACKEND_URL") or "https://api.novu.co"
+        ).rstrip("/")
         self.timeout = timeout
         self.inbox_store = inbox_store or InboxStore()
 

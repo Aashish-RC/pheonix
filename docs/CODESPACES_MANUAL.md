@@ -110,9 +110,13 @@ Codespaces automatically forwards exposed ports to public/private preview URLs. 
 | **`7700`** | Meilisearch | Fast search engine endpoint |
 | **`8025`** | Mailpit Web UI | In-browser test email inbox (local SMTP mock) |
 | **`11434`** | Ollama | Local LLM inference server |
-| **`3001`** | Novu | Notification server |
+| **`3001`** | Novu API | Self-hosted notification API |
+| **`3002`** | Novu WebSocket | Real-time notification updates |
+| **`3005`** | Novu Dashboard | Novu administration UI |
 
 To open any service in your browser, hover over the port row in the **Ports** tab and click the **Globe / Open in Browser** icon.
+
+The Novu dashboard defaults to `localhost` URLs for local development. When opening it through Codespaces port forwarding, set `NOVU_API_URL`, `NOVU_WS_URL`, and `NOVU_DASHBOARD_URL` in `.env` to the corresponding forwarded URLs from the Ports tab, then restart the Novu services with `docker compose up -d novu-api novu-ws novu-dashboard`.
 
 ---
 

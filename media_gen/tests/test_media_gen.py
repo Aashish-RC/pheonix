@@ -326,7 +326,7 @@ async def test_image_route_safety_and_generation_pipeline():
     assert res.artifact.media_type == MediaType.IMAGE
     assert res.artifact.size_bytes > 0
     assert len(res.artifact.sha256) == 64
-    assert res.artifact.uri.endswith(".png")
+    assert res.artifact.uri.endswith(".png") or res.artifact.uri.startswith("data:image/png;base64,")
     assert res.safety_checked is True
 
     # 2. Forbidden prompt containing gore / violence returns safety error

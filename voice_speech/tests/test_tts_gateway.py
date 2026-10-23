@@ -82,6 +82,23 @@ def test_tts_routes_to_gateway_with_fake_transport(fake_gateway_tts_transport):
     assert data["model"] == "tts-1"
 
 
+def test_tts_falls_back_when_gateway_returns_invalid_wav():
+    def invalid_audio_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"RIFF-AUDIO-STREAM-FORMAT:wav")
+
+    client = httpx.Client(transport=httpx.MockTransport(invalid_audio_handler))
+    synthesizer = SpeechSynthesizer(
+        gateway_url="http://fake-gateway.internal:4000",
+        http_client=client,
+    )
+
+    result = synthesizer.synthesize("Fallback after invalid gateway audio")
+
+    assert result.audio_bytes[:4] == b"RIFF"
+    assert result.audio_bytes[8:12] == b"WAVE"
+    assert result.audio_bytes != b"RIFF-AUDIO-STREAM-FORMAT:wav"
+
+
 def test_tts_stream_with_fake_transport(fake_gateway_tts_transport):
     """Verify stream synthesis produces valid chunked bytes using fake gateway transport."""
     client = httpx.Client(transport=fake_gateway_tts_transport)

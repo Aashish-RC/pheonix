@@ -10,6 +10,8 @@ Pheonix is a local-first, zero-trust AI operating ecosystem unifying intelligenc
 > **Recommended: Run in GitHub Codespaces**  
 > If you prefer not to install dependencies locally or your local Docker hangs, run Pheonix in one click via cloud-hosted **GitHub Codespaces**.  
 > See the step-by-step instructions in the [Codespaces Manual](docs/CODESPACES_MANUAL.md).
+>
+> To run it on your own computer instead, follow the [Localhost Run Manual](docs/LOCALHOST_MANUAL.md).
 
 ### Prerequisites
 - Python 3.12+

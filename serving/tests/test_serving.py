@@ -169,6 +169,21 @@ class TestOfflineInference:
         assert res.model == "llama3.2:1b"
         assert len(res.content) > 0
 
+    def test_engine_skips_available_runtime_without_requested_model(self, monkeypatch):
+        engine = ModelServingEngine(limits=ResourceLimits(enforce_ram_limits=False))
+        ollama = engine.get_runtime("ollama")
+        llamacpp = engine.get_runtime("llama.cpp")
+        monkeypatch.setattr(ollama, "is_available", lambda: True)
+        monkeypatch.setattr(ollama, "list_models", lambda: [])
+        monkeypatch.setattr(llamacpp, "is_available", lambda: False)
+
+        result = engine.infer(InferenceRequest(
+            model="llama3.2:1b",
+            messages=[{"role": "user", "content": "Hello"}],
+        ))
+
+        assert result.runtime == "mock-offline"
+
     def test_serving_client_sdk_convenience_methods(self):
         engine = ModelServingEngine(limits=ResourceLimits(enforce_ram_limits=False))
         client = ServingClient(engine=engine)
@@ -258,4 +273,3 @@ class TestOfflineInference:
         )
         assert gen_res.status_code == 422
         assert "Device profile insufficient" in gen_res.json()["detail"]
-

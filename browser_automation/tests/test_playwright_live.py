@@ -93,20 +93,23 @@ def static_server() -> Generator[str, None, None]:
     server.stop()
 
 
-def is_playwright_installed() -> bool:
+@pytest.fixture(scope="module")
+def require_playwright_browser() -> None:
     try:
-        from playwright.sync_api import sync_playwright  # noqa: F401
-        return True
-    except Exception:
-        return False
+        from playwright.sync_api import sync_playwright
+
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(headless=True)
+            browser.close()
+    except Exception as exc:
+        pytest.skip(f"Playwright Chromium is not available: {exc}")
 
 
 # ==============================================================================
 # Live Playwright Integration Tests
 # ==============================================================================
 
-@pytest.mark.skipif(not is_playwright_installed(), reason="Playwright is not installed")
-def test_playwright_open_url_and_extract_page_text(static_server):
+def test_playwright_open_url_and_extract_page_text(static_server, require_playwright_browser):
     """Live Test: open a real URL and extract page text via Playwright."""
     agent = BrowserUseAgent(use_playwright=True, headless=True)
     try:
@@ -122,8 +125,7 @@ def test_playwright_open_url_and_extract_page_text(static_server):
         agent.close()
 
 
-@pytest.mark.skipif(not is_playwright_installed(), reason="Playwright is not installed")
-def test_playwright_safe_button_clicks_without_pause(static_server):
+def test_playwright_safe_button_clicks_without_pause(static_server, require_playwright_browser):
     """Live Test: clicking an ordinary button (e.g. 'View Details') executes without pausing."""
     agent = BrowserUseAgent(use_playwright=True, headless=True)
     try:
@@ -140,14 +142,15 @@ def test_playwright_safe_button_clicks_without_pause(static_server):
         agent.close()
 
 
-@pytest.mark.skipif(not is_playwright_installed(), reason="Playwright is not installed")
 @pytest.mark.parametrize("selector,keyword", [
     ("#btn-delete", "Delete"),
     ("#btn-pay", "Pay"),
     ("#btn-confirm", "Confirm"),
     ("#btn-buy", "Buy"),
 ])
-def test_playwright_confirmation_interceptor_pauses_consequential_buttons(static_server, selector, keyword):
+def test_playwright_confirmation_interceptor_pauses_consequential_buttons(
+    static_server, require_playwright_browser, selector, keyword
+):
     """Live Test: confirmation interceptor pauses before clicking any element matching Delete, Pay, Confirm, Buy."""
     agent = BrowserUseAgent(use_playwright=True, headless=True)
     try:
@@ -174,8 +177,9 @@ def test_playwright_confirmation_interceptor_pauses_consequential_buttons(static
         agent.close()
 
 
-@pytest.mark.skipif(not is_playwright_installed(), reason="Playwright is not installed")
-def test_playwright_form_submit_pauses_for_approval_in_live_test(static_server):
+def test_playwright_form_submit_pauses_for_approval_in_live_test(
+    static_server, require_playwright_browser
+):
     """Done condition: a form submit pauses for approval in the live test."""
     agent = BrowserUseAgent(use_playwright=True, headless=True)
     try:

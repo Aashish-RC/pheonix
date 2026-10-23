@@ -59,3 +59,11 @@ def test_remote_novu_trigger_with_api_key():
         assert mock_urlopen.called
         req = mock_urlopen.call_args[0][0]
         assert req.get_header("Authorization") == "ApiKey nv-test-key-12345"
+
+
+def test_novu_backend_url_from_environment(monkeypatch):
+    monkeypatch.setenv("NOVU_BACKEND_URL", "http://localhost:3001/")
+
+    backend = NovuBackend()
+
+    assert backend.backend_url == "http://localhost:3001"
