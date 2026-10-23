@@ -7,7 +7,14 @@
       "enableMoby": false
     }
   },
-  "forwardPorts": [4000, 6333, 7700, 8025, 11434, 3001],
+  "forwardPorts": [
+    4000,
+    6333,
+    7700,
+    8025,
+    11434,
+    3001
+  ],
   "portsAttributes": {
     "4000": {
       "label": "Model Gateway",
