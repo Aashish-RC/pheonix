@@ -267,6 +267,11 @@ jobs:
           cd agent
           python -m pytest tests/
 
+      - name: Run Unified Console & Web UI Tests (Pytest)
+        run: |
+          cd console
+          python -m pytest tests/
+
       - name: Run Root Integration Tests (Pytest)
         run: |
           python -m pytest tests/

@@ -147,6 +147,7 @@ def main():
         ("Release Finishing & Update Channel (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "release_finishing"),
         ("Resource Optimizer (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "resource_optimizer"),
         ("Agent Layer (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "agent"),
+        ("Unified Console & Web UI (Pytest)", [py_bin, "-m", "pytest", "tests/"], ROOT_DIR / "console"),
     ]
 
     results = []

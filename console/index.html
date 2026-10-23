@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Pheonix Unified Intelligence, Agent Orchestration, Live Canvas, and Governance Console">
+  <title>Pheonix | Unified Intelligence & Governance Console</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div id="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <span class="brand-title">Pheonix</span>
+        <span class="brand-badge">2026.1</span>
+      </div>
+
+      <nav class="nav-menu">
+        <button id="nav-btn-chat" class="nav-item active" onclick="switchTab('chat')">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Conversational Core
+        </button>
+        <button id="nav-btn-canvas" class="nav-item" onclick="switchTab('canvas')">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h18"/></svg>
+          Live Canvas
+        </button>
+        <button id="nav-btn-prompt" class="nav-item" onclick="switchTab('prompt')">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          Prompt Assistant
+        </button>
+        <button id="nav-btn-owner" class="nav-item" onclick="switchTab('owner')">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+          Owner Console
+        </button>
+        <button id="nav-btn-audit" class="nav-item" onclick="switchTab('audit')">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Audit Ledger
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="tenant-selector">
+          <label class="tenant-label" for="tenant-select-box">Tenant Scope</label>
+          <select id="tenant-select-box" class="tenant-select" onchange="onTenantChange(this.value)">
+            <option value="tenant_enterprise_alpha">Enterprise Alpha (Prod)</option>
+            <option value="tenant_rnd_beta">R&D Lab (Staging)</option>
+            <option value="tenant_isolated_demo">Sandbox Demo</option>
+          </select>
+        </div>
+        <div class="tenant-selector">
+          <label class="tenant-label" for="role-select-box">Active Role</label>
+          <select id="role-select-box" class="tenant-select" onchange="onRoleChange(this.value)">
+            <option value="owner">Owner / SuperAdmin</option>
+            <option value="admin">Administrator</option>
+            <option value="member">Team Member</option>
+            <option value="viewer">Auditor / Viewer</option>
+          </select>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="main-wrapper">
+      <!-- Header -->
+      <header class="top-header">
+        <div class="header-left">
+          <h1 id="active-view-header" class="view-title">Conversational Core & Agent Surface</h1>
+        </div>
+        <div class="header-right">
+          <div class="status-indicator">
+            <span class="status-pulse"></span>
+            <span id="system-status-text">36 Modules Healthy</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- View 1: Chat -->
+      <section id="view-chat" class="view-container active">
+        <div class="chat-layout">
+          <div id="chat-messages" class="chat-messages-area">
+            <div class="message-card">
+              <div class="avatar bot-avatar">PH</div>
+              <div class="message-bubble">
+                <p><strong>Pheonix Intelligence Online.</strong> Connected to unified local and cloud model runtimes, memory engine, and tool dispatcher.</p>
+                <div class="tool-chip">
+                  <span class="tool-chip-name">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m10 15 5-3-5-3v6z"/></svg>
+                    vault:load_credentials
+                  </span>
+                  <span class="tool-chip-badge">SHA256 verified</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- CAPTCHA / Human Takeover Banner (Step 24) -->
+        <div id="takeover-banner" class="approval-banner" style="display: none; margin: 0 2rem 1rem 2rem;">
+          <div class="approval-text">
+            <strong>Human Takeover Required:</strong> <span id="takeover-reason">Cloudflare Turnstile detected.</span>
+          </div>
+          <div class="approval-btn-group">
+            <button id="btn-solve-takeover" class="btn-approve" onclick="resolveTakeover()">Solve & Return Control</button>
+            <button id="btn-abort-takeover" class="btn-reject" onclick="abortTakeover()">Abort</button>
+          </div>
+        </div>
+
+        <div class="chat-input-bar">
+          <input type="text" id="chat-user-input" class="chat-input" placeholder="Instruct the agent or ask a question (e.g., 'Analyze security audit log')..." onkeydown="if(event.key==='Enter') sendMessage()">
+          <button id="btn-chat-send" class="btn-send" onclick="sendMessage()">
+            <span>Dispatch</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- View 2: Live Canvas & Artifacts -->
+      <section id="view-canvas" class="view-container">
+        <div class="canvas-split">
+          <div class="canvas-editor-pane">
+            <div class="pane-header">
+              <span>Interactive Artifact Editor</span>
+              <button id="btn-canvas-render" class="btn-approve" onclick="renderCanvas()">Run / Update</button>
+            </div>
+            <textarea id="canvas-code-input" class="code-textarea" spellcheck="false">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+  &lt;style&gt;
+    body { font-family: sans-serif; background: #0f172a; color: #f8fafc; padding: 2rem; }
+    .card { background: #1e293b; padding: 1.5rem; border-radius: 12px; border: 1px solid #334155; }
+    h2 { color: #818cf8; margin-top: 0; }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div class="card"&gt;
+    &lt;h2&gt;Live Pheonix Artifact Surface&lt;/h2&gt;
+    &lt;p&gt;This component demonstrates real-time sandboxed live code and SVG rendering.&lt;/p&gt;
+  &lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;</textarea>
+          </div>
+          <div class="canvas-preview-pane">
+            <iframe id="canvas-iframe" class="preview-frame" sandbox="allow-scripts allow-modals"></iframe>
+          </div>
+        </div>
+      </section>
+
+      <!-- View 3: Prompt Assistant & Instruction Tuner -->
+      <section id="view-prompt" class="view-container">
+        <div class="dashboard-grid" style="grid-template-columns: 1fr 1fr;">
+          <div class="metric-card" style="gap: 1rem;">
+            <div class="metric-title">Prompt Optimizer & Persona Builder</div>
+            <textarea id="prompt-tuner-input" class="code-textarea" style="height: 180px; border-radius: 8px;" placeholder="Enter draft prompt instructions...">Analyze customer support transcripts for compliance and tone.</textarea>
+            <div style="display: flex; gap: 0.75rem;">
+              <button id="btn-optimize-prompt" class="btn-send" onclick="optimizePrompt()">Optimize Prompt</button>
+            </div>
+          </div>
+          <div class="metric-card" style="gap: 1rem;">
+            <div class="metric-title">Synthesized System Prompt (Few-Shot Ready)</div>
+            <div id="prompt-tuner-output" style="font-family: var(--font-mono); font-size: 0.85rem; line-height: 1.5; color: #a5b4fc; background: #0d1117; padding: 1rem; border-radius: 8px; height: 180px; overflow-y: auto;">
+              Click 'Optimize Prompt' to synthesize optimized instructions...
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- View 4: Owner Console & Telemetry Dashboard -->
+      <section id="view-owner" class="view-container">
+        <div class="dashboard-grid">
+          <div class="metric-card">
+            <span class="metric-title">Module Health</span>
+            <span class="metric-value" style="color: var(--accent-emerald);">36 / 36</span>
+            <span class="metric-subtitle">All repository test suites passing</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-title">Total Tests Verified</span>
+            <span class="metric-value" style="color: var(--accent-cyan);">658</span>
+            <span class="metric-subtitle">100% automated regression matrix</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-title">Active Inference Queue</span>
+            <span class="metric-value">0</span>
+            <span class="metric-subtitle">Capacity headroom: 100% available</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-title">Update Channel</span>
+            <span class="metric-value" style="font-size: 1.5rem; color: var(--accent-purple);">main (v0.1.0)</span>
+            <button id="btn-check-updates" class="btn-approve" style="width: fit-content; margin-top: 0.5rem;" onclick="checkUpdates()">Check Channel Updates</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- View 5: Tamper-Evident Audit Ledger -->
+      <section id="view-audit" class="view-container">
+        <div class="audit-panel" style="margin-top: 2rem;">
+          <table class="audit-table">
+            <thead>
+              <tr>
+                <th>Seq</th>
+                <th>Timestamp</th>
+                <th>Tenant ID</th>
+                <th>Actor Role</th>
+                <th>Action</th>
+                <th>Chained SHA256</th>
+                <th>Integrity</th>
+              </tr>
+            </thead>
+            <tbody id="audit-table-body">
+              <tr>
+                <td>#1</td>
+                <td>2026-10-24 03:00:12</td>
+                <td>tenant_enterprise_alpha</td>
+                <td>owner</td>
+                <td>vault.initialize_keystore</td>
+                <td><code style="color: var(--accent-cyan);">8f3b20...da41</code></td>
+                <td><span class="badge-verified">&#10003; Verified</span></td>
+              </tr>
+              <tr>
+                <td>#2</td>
+                <td>2026-10-24 03:15:45</td>
+                <td>tenant_enterprise_alpha</td>
+                <td>admin</td>
+                <td>orchestrator.plan_resumed</td>
+                <td><code style="color: var(--accent-cyan);">4c19a7...ee29</code></td>
+                <td><span class="badge-verified">&#10003; Verified</span></td>
+              </tr>
+              <tr>
+                <td>#3</td>
+                <td>2026-10-24 03:22:30</td>
+                <td>tenant_enterprise_alpha</td>
+                <td>agent</td>
+                <td>browser.takeover_resolved</td>
+                <td><code style="color: var(--accent-cyan);">a9f140...9b33</code></td>
+                <td><span class="badge-verified">&#10003; Verified</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
