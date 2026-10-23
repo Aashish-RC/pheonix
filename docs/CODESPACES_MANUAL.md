@@ -57,6 +57,15 @@ If you specifically need the Novu self-hosted notifications and MongoDB stack:
 docker compose --profile notifications up -d
 ```
 
+### Keep Disk Space Under Control
+Codespaces disks are small (typically 32 GB on 2/4-core machines). Check and clean up with:
+```bash
+scripts/disk_guard.sh status        # free space, Docker usage, biggest folders
+scripts/disk_guard.sh require 3      # before pulling a ~3 GB model (fails if there is not enough room)
+scripts/disk_guard.sh clean          # safe cleanup; add --deep to also drop unused Docker images
+```
+Docker volumes (Ollama models, Qdrant, Meilisearch) are never deleted automatically.
+
 ### Check Container Status:
 ```bash
 docker compose ps

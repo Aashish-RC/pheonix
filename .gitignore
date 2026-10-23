@@ -45,3 +45,9 @@ temp/
 tmp/
 tmp_*/
 scratch/
+
+# Model weights and local state (large; must never be committed)
+*.gguf
+*.safetensors
+*.onnx
+.pheonix/

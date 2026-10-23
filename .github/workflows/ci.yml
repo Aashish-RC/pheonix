@@ -75,6 +75,14 @@ jobs:
             exit 1
           fi
 
+      - name: Check for Undefined Names (Ruff F821)
+        run: |
+          ruff check --select F821 .
+
+      - name: Check Architecture Status Drift
+        run: |
+          python scripts/generate_status.py --check
+
       - name: Run Component Registry Tests (Pytest)
         run: |
           cd registry
@@ -135,12 +143,126 @@ jobs:
           cd memory
           python -m pytest tests/
 
+      - name: Run Knowledge & Docs Tests (Pytest)
+        run: |
+          cd knowledge
+          python -m pytest tests/
+
+      - name: Run Global Search Tests (Pytest)
+        run: |
+          cd search
+          python -m pytest tests/
+
+      - name: Run Web Search & Verification Tests (Pytest)
+        run: |
+          cd web_search
+          python -m pytest tests/
+
+      - name: Run Canvas & Live Artifacts Tests (Pytest)
+        run: |
+          cd canvas
+          python -m pytest tests/
+
+      - name: Run Permission Modes Tests (Pytest)
+        run: |
+          cd permissions
+          python -m pytest tests/
+
+      - name: Run Orchestrator Tests (Pytest)
+        run: |
+          cd orchestrator
+          python -m pytest tests/
+
+      - name: Run Agent Sandboxes Tests (Pytest)
+        run: |
+          cd sandboxes
+          python -m pytest tests/
+
+      - name: Run Tool & MCP Registry Tests (Pytest)
+        run: |
+          cd tools_mcp
+          python -m pytest tests/
+
+      - name: Run Internal Agents Tests (Pytest)
+        run: |
+          cd internal_agents
+          python -m pytest tests/
+
+      - name: Run Empirical Recommender Tests (Pytest)
+        run: |
+          cd recommender
+          python -m pytest tests/
+
+      - name: Run Browser Automation Tests (Pytest)
+        run: |
+          cd browser_automation
+          python -m pytest tests/
+
+      - name: Run Agent Builder Tests (Pytest)
+        run: |
+          cd agent_builder
+          python -m pytest tests/
+
+      - name: Run Workflow Builder Tests (Pytest)
+        run: |
+          cd workflow_builder
+          python -m pytest tests/
+
+      - name: Run Skills & Plugin Packaging Tests (Pytest)
+        run: |
+          cd skills_packaging
+          python -m pytest tests/
+
+      - name: Run Notifications Tests (Pytest)
+        run: |
+          cd notifications
+          python -m pytest tests/
+
+      - name: Run Voice & Speech Tests (Pytest)
+        run: |
+          cd voice_speech
+          python -m pytest tests/
+
+      - name: Run Media Generation Tests (Pytest)
+        run: |
+          cd media_gen
+          python -m pytest tests/
+
+      - name: Run Translation Tests (Pytest)
+        run: |
+          cd translation
+          python -m pytest tests/
+
+      - name: Run Remote Access & Pairing Tests (Pytest)
+        run: |
+          cd remote_access
+          python -m pytest tests/
+
+      - name: Run State Sync Engine Tests (Pytest)
+        run: |
+          cd sync_engine
+          python -m pytest tests/
+
+      - name: Run Release Finishing & Update Channel Tests (Pytest)
+        run: |
+          cd release_finishing
+          python -m pytest tests/
+
+      - name: Run Resource Optimizer Tests (Pytest)
+        run: |
+          cd resource_optimizer
+          python -m pytest tests/
+
       - name: Run Agent Layer Tests (Pytest)
         run: |
           cd agent
           python -m pytest tests/
 
-      - name: Run Unified Test Runner
+      - name: Run Root Integration Tests (Pytest)
+        run: |
+          python -m pytest tests/
+
+      - name: Run Unified Test Runner (All 35 Modules)
         run: |
           python scripts/test_all.py
 
@@ -177,4 +299,4 @@ jobs:
         env:
           PHEONIX_LIVE: "1"
         run: |
-          python -m pytest tests/integration -q -m live
+          python -m pytest -q -m live

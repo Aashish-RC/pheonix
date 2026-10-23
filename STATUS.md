@@ -24,7 +24,7 @@
 | **9** | **Observability, Basic** (`observability`) | **PARTIAL** | `observability/core/tracer.py`, `observability/tests/test_observability.py` | Live remote Langfuse / OpenLLMetry collector; tests use mock HTTP and local buffer. |
 | **10** | **Guardrails and Safety v0** (`guardrails`) | **REAL** | `guardrails/core/engine.py`, `guardrails/tests/test_guardrails.py` | ML embedding classifiers; uses deterministic attack patterns and crisis taxonomy. |
 | **11** | **Subscription & Key Tracker** (`tracker`) | **REAL** | `tracker/core/tracker.py`, `tracker/tests/test_tracker.py` | Live billing provider webhooks (Stripe / OpenRouter billing sync). |
-| **12** | **Storage and Files** (`storage`) | **REAL** | `storage/core/engine.py`, `storage/drivers/s3.py`, `storage/tests/test_s3_driver.py` | Production remote AWS S3 / MinIO cluster endpoint connection in live CI. |
+| **12** | **Storage and Files** (`storage`) | **PARTIAL** | `storage/core/engine.py`, `storage/drivers/s3.py`, `storage/tests/test_s3_driver.py` | Production remote AWS S3 / MinIO cluster endpoint connection in live CI. |
 | **13** | **Memory and Retrieval** (`memory`) | **PARTIAL** | `memory/core/engine.py`, `memory/tests/test_engine.py` | Live Qdrant cluster connection in test; runs SQLite facts and mock embeddings. |
 | **14** | **Knowledge and Docs** (`knowledge`) | **PARTIAL** | `knowledge/core/engine.py`, `knowledge/tests/test_knowledge.py` | Live external document sync and sync engine coupling. |
 | **15** | **Global Search** (`search`) | **PARTIAL** | `search/core/engine.py`, `search/tests/test_meilisearch.py` | Live Meilisearch HTTP service; tested with mock adapter and local fallback. |

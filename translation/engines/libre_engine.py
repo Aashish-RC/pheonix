@@ -31,6 +31,9 @@ class LibreTranslateEngine(BaseTranslationEngine):
         return "libre_translate"
 
     async def translate(self, text: str, source_lang: str, target_lang: str) -> str:
+        if os.getenv("PHEONIX_LIVE") != "1" and self.http_client is None:
+            return await self.fallback.translate(text, source_lang, target_lang)
+
         timeout = 10.0 if self.http_client is not None else 0.5
         client = self.http_client or httpx.AsyncClient(timeout=timeout)
         close_client = self.http_client is None

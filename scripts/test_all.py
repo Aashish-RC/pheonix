@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
 Pheonix Unified Test Runner
-Runs automated tests across all repository components:
-1. model-gateway (TypeScript / Vitest)
-2. memory (Python / Pytest)
-3. agent (Python / Pytest)
+Runs automated tests across all 35 repository components (Python / Pytest and TypeScript / Vitest):
+- Intelligence: model-gateway, serving, memory, knowledge, search, web_search, guardrails, rules, recommender, resource_optimizer
+- Agency: orchestrator, agent_builder, sandboxes, internal_agents, workflow_builder, tools_mcp, browser_automation, skills_packaging, permissions, agent
+- Trust & Ops: vault, auth, providers, tracker, observability, release_finishing, remote_access, sync_engine
+- Shared Services: storage, notifications, voice_speech, media_gen, translation, canvas, registry
 """
 
 import os
@@ -61,10 +62,16 @@ def run_step(name: str, cmd: list[str], cwd: Path) -> tuple[bool, int, float]:
     start = time.time()
     try:
         is_windows = sys.platform.startswith("win")
+        env = os.environ.copy()
+        existing_pythonpath = env.get("PYTHONPATH", "")
+        env["PYTHONPATH"] = (
+            str(ROOT_DIR) + (os.pathsep + existing_pythonpath if existing_pythonpath else "")
+        )
         result = subprocess.run(
             cmd,
             cwd=cwd,
             shell=is_windows,
+            env=env,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,

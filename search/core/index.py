@@ -42,7 +42,10 @@ class MeilisearchClient(BaseSearchEngine):
             return self._server_available
 
         try:
-            req = urllib.request.Request(f"{self.url}/health", method="GET")
+            headers = {}
+            if self.master_key:
+                headers["Authorization"] = f"Bearer {self.master_key}"
+            req = urllib.request.Request(f"{self.url}/indexes", headers=headers, method="GET")
             with urllib.request.urlopen(req, timeout=1.0) as resp:
                 self._server_available = (resp.status == 200)
         except Exception:

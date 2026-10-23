@@ -3,7 +3,7 @@
 from pathlib import Path
 import shutil
 import tempfile
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 from .core.interfaces import BaseDeviceRunner, BaseSandboxManager
 from .core.models import (
     ExecutionRequest,

@@ -1,5 +1,6 @@
 """Tool Discovery, Dynamic Registration, and Execution Dispatcher."""
 
+import asyncio
 from typing import Any, Callable, Dict, List, Optional
 import httpx
 

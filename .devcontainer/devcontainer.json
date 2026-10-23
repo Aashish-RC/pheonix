@@ -55,6 +55,7 @@
       "onAutoForward": "notify"
     }
   },
+  "postStartCommand": "bash scripts/disk_guard.sh check || bash scripts/disk_guard.sh clean",
   "postCreateCommand": "bash -c 'if [ ! -f .env ]; then cp .env.example .env; fi && pip install --no-cache-dir -e \".[all]\" && pnpm --dir model-gateway install'",
   "customizations": {
     "vscode": {

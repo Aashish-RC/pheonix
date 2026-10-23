@@ -148,7 +148,7 @@ An inspection of the workspace reveals three existing directories:
 | **21** | **Tool and MCP Registry** | Opt 2 | Steps 2, 18, 19 | Curated catalog, idle-until-needed lazy loader, connector auth (Nango), request queue. | A tool asks for credentials only at the instant it is invoked. | **PARTIAL** |
 | **22** | **Internal Agents** | Opt 1 | Steps 19, 20, 21 | Provider-health agent, guardrail-evaluator agent, resource-monitoring agent. | Background maintenance agents run autonomously with full audit logs. | **REAL** |
 | **23** | **Recommender, Full** | Opt 1 | Steps 9, 21 | Empirical performance scoring from usage telemetry, automated second-opinion rule. | Auto model/tool selections systematically outperform manual picks on benchmark test suite. | **REAL** |
-| **24** | **Browser Automation** | Opt 2 | Steps 18, 20, 21 | Browser agent engine (Browser Use), headless browser profile, confirmation policy. | Browser agent navigates workflows and pauses for confirmation before sensitive actions. | **SIMULATED** |
+| **24** | **Browser Automation** | Opt 2 | Steps 18, 20, 21 | Browser agent engine (Browser Use), headless browser profile, confirmation policy. | Browser agent navigates workflows and pauses for confirmation before sensitive actions. | **PARTIAL** |
 
 ---
 
@@ -170,9 +170,9 @@ An inspection of the workspace reveals three existing directories:
 |:---:|---|---|---|---|---|:---:|
 | **28** | **Notifications** | Opt 2 | Step 19 | Unified notification inbox, channel dispatchers (Web/Desktop/Email), quiet hours rule. | A completed asynchronous background task sends a timely alert. | **PARTIAL** |
 | **29** | **Voice and Speech** | Opt 2 | Steps 7, 12 | Local/streamed dictation engine (Whisper), real-time conversational voice pipeline (LiveKit). | User can hold a low-latency voice conversation with the system. | **PARTIAL** |
-| **30** | **Media Generation** | Opt 2 | Steps 7, 10, 12, 19 | Image route, audio route, video route, generation queue, safety checks. | A generated image or audio file renders and passes automated safety filters. | **SIMULATED** |
-| **31** | **Translation** | Opt 2 | Step 7 | Auto-translation gateway middleware, multi-language detection. | Toggle button translates conversational sessions on-the-fly. | **SIMULATED** |
-| **32** | **Remote Access & Pairing** | Opt 2 | Steps 2, 3 | Cryptographic device pairing, end-to-end encrypted relay, mesh network routing. | A paired external client securely connects to the host machine across networks. | **SIMULATED** |
+| **30** | **Media Generation** | Opt 2 | Steps 7, 10, 12, 19 | Image route, audio route, video route, generation queue, safety checks. | A generated image or audio file renders and passes automated safety filters. | **PARTIAL** |
+| **31** | **Translation** | Opt 2 | Step 7 | Auto-translation gateway middleware, multi-language detection. | Toggle button translates conversational sessions on-the-fly. | **PARTIAL** |
+| **32** | **Remote Access & Pairing** | Opt 2 | Steps 2, 3 | Cryptographic device pairing, end-to-end encrypted relay, mesh network routing. | A paired external client securely connects to the host machine across networks. | **PARTIAL** |
 | **33** | **Sync** | Opt 2 | Steps 3, 12, 13, 32 | Settings sync, conversation history sync, distributed vector memory sync. | Two paired nodes maintain deterministic consistency. | **PARTIAL** |
 | **34** | **Component Registry Finishing** | Opt 2 | Steps 4, and all | Production update channel, staged rollout controller, user-app export packager. | An exported user application updates strictly when its underlying components update. | **REAL** |
 
