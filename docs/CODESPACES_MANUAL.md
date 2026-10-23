@@ -45,15 +45,16 @@ pnpm --dir model-gateway install
 
 Codespaces has Docker and Docker Compose installed natively.
 
-### Start All Services:
+### Start Core Services (Recommended & Disk-Safe):
+To conserve disk space and memory in Codespaces, launch only the core profile (Qdrant, Ollama, Meilisearch, Model Gateway):
 ```bash
-docker compose up -d
+docker compose --profile core up -d
 ```
 
-### Start Only Core Services (Resource-friendly):
-If you want to conserve memory, launch only the core services:
+### Start All Services (Including Novu Stack):
+If you specifically need the Novu self-hosted notifications and MongoDB stack:
 ```bash
-docker compose up -d qdrant ollama meilisearch model-gateway
+docker compose --profile notifications up -d
 ```
 
 ### Check Container Status:
