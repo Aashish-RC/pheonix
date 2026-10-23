@@ -4,16 +4,16 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 import pytest
 
-from core.models import FactItem, FactCategory, Turn, TurnRole, MemoryRecord, utc_now
-from stitches.extractor import FactExtractor
-from stitches.conflict_resolver import ConflictResolver
-from stitches.synthesizer import ContextSynthesizer
-from stitches.consolidation import ConsolidationEngine
-from tiers.facts.sqlite_adapter import SQLiteFactStore
-from tiers.working.in_memory import InMemoryWorkingMemory
-from tiers.semantic.qdrant_adapter import QdrantAdapter
-from embeddings.embedder import LocalHashEmbedder
-from config import MemoryConfig
+from memory.core.models import FactItem, FactCategory, Turn, TurnRole, MemoryRecord, utc_now
+from memory.stitches.extractor import FactExtractor
+from memory.stitches.conflict_resolver import ConflictResolver
+from memory.stitches.synthesizer import ContextSynthesizer
+from memory.stitches.consolidation import ConsolidationEngine
+from memory.tiers.facts.sqlite_adapter import SQLiteFactStore
+from memory.tiers.working.in_memory import InMemoryWorkingMemory
+from memory.tiers.semantic.qdrant_adapter import QdrantAdapter
+from memory.embeddings.embedder import LocalHashEmbedder
+from memory.config import MemoryConfig
 
 
 def test_extractor_stitch():

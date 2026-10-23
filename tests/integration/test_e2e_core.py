@@ -31,14 +31,9 @@ from providers import (
 from serving.models import InferenceRequest, ResourceLimits
 from serving.core.engine import ModelServingEngine
 
-import sys
-ROOT_DIR = Path(__file__).resolve().parent.parent.parent
-if str(ROOT_DIR / "memory") not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR / "memory"))
-
 # 4. Memory
-from engine import MemoryEngine
-from config import (
+from memory.engine import MemoryEngine
+from memory.config import (
     MemoryConfig,
     WorkingMemoryBackend,
     FactStoreBackend,

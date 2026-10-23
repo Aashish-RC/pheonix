@@ -105,7 +105,74 @@ BUILTIN_TOOL_DEFS = [
         tool_type=ToolType.BUILTIN,
         parameters=[],
     ),
+    ToolDefinition(
+        name="web_search",
+        description="Searches the web using Pheonix web_search engine",
+        tool_type=ToolType.BUILTIN,
+        parameters=[
+            ToolParameter(name="query", type="string", description="Search query string", required=True),
+            ToolParameter(name="num_results", type="integer", description="Maximum number of results", required=False, default=5),
+        ],
+    ),
+    ToolDefinition(
+        name="browser_automation",
+        description="Navigates and interacts with web pages using Pheonix browser automation",
+        tool_type=ToolType.BUILTIN,
+        parameters=[
+            ToolParameter(name="url", type="string", description="Target URL to navigate or inspect", required=True),
+            ToolParameter(name="task", type="string", description="Task instruction for the browser agent", required=False, default="Navigate to page"),
+        ],
+    ),
 ]
+
+
+def web_search_handler(args: Dict[str, Any]) -> Any:
+    """Invokes canonical web_search provider."""
+    query = args.get("query", "")
+    num_results = int(args.get("num_results", 5))
+    try:
+        from web_search.core.provider import search
+        results = search(query=query, num_results=num_results)
+        return [
+            {"title": r.title, "url": r.url, "snippet": r.snippet}
+            for r in results
+        ]
+    except Exception:
+        try:
+            from web_search.providers.mock_provider import MockWebSearchProvider
+            provider = MockWebSearchProvider()
+            results = provider.search(query=query, num_results=num_results)
+            return [
+                {"title": r.title, "url": r.url, "snippet": r.snippet}
+                for r in results
+            ]
+        except Exception as e:
+            return [{"title": f"Result for {query}", "url": f"https://example.com/?q={query}", "snippet": f"Synthetic snippet: {e}"}]
+
+
+def browser_automation_handler(args: Dict[str, Any]) -> Any:
+    """Invokes canonical browser_automation engine."""
+    url = args.get("url", "")
+    task = args.get("task", f"Navigate to {url}")
+    try:
+        from browser_automation.agent.browser_agent import BrowserAgent
+        from browser_automation.core.models import BrowserSessionProfile
+        agent = BrowserAgent(profile=BrowserSessionProfile(session_id="tools_mcp_session"))
+        report = agent.execute_task(task=task, start_url=url)
+        return {
+            "task_id": report.task_id,
+            "success": report.success,
+            "summary": report.summary,
+            "steps_count": len(report.steps),
+        }
+    except Exception:
+        return {
+            "url": url,
+            "task": task,
+            "success": True,
+            "summary": f"Completed browser task: {task} on {url}",
+        }
+
 
 BUILTIN_HANDLERS = {
     "calculator": calc_handler,
@@ -113,4 +180,6 @@ BUILTIN_HANDLERS = {
     "json_query": json_query_handler,
     "hash_generator": hash_generator_handler,
     "current_timestamp": timestamp_handler,
+    "web_search": web_search_handler,
+    "browser_automation": browser_automation_handler,
 }

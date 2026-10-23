@@ -5,8 +5,8 @@ import os
 import shlex
 import time
 from typing import Any, Dict, List, Optional
-from core.manifest import SandboxConfig
-from core.exceptions import SandboxExecutionError
+from agent.core.manifest import SandboxConfig
+from agent.core.exceptions import SandboxExecutionError
 
 
 class LocalDockerSandboxAdapter:

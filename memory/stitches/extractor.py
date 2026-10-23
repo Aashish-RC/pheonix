@@ -5,14 +5,14 @@ import re
 from typing import List, Optional
 from uuid import UUID, uuid4
 
-from core.interfaces import BaseLLMExtractor
-from core.models import (
+from memory.core.interfaces import BaseLLMExtractor
+from memory.core.models import (
     FactItem,
     FactCategory,
     ExtractedMemoryPlan,
     utc_now,
 )
-from config import MemoryConfig
+from memory.config import MemoryConfig
 
 
 CHIT_CHAT_PATTERNS = [

@@ -5,9 +5,9 @@ import asyncio
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
-from core.manifest import AgentManifest, SubagentConfig
-from core.event_bus import EventBus, AgentEvent, EventType, default_event_bus
-from core.exceptions import RunnerExecutionError
+from agent.core.manifest import AgentManifest, SubagentConfig
+from agent.core.event_bus import EventBus, AgentEvent, EventType, default_event_bus
+from agent.core.exceptions import RunnerExecutionError
 
 
 class SubagentTask(BaseException):

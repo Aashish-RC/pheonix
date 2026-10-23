@@ -4,8 +4,8 @@ from typing import Any, Dict, List, Tuple
 from pydantic import ValidationError
 import jsonschema
 
-from core.manifest import AgentManifest
-from core.exceptions import ManifestValidationError
+from agent.core.manifest import AgentManifest
+from agent.core.exceptions import ManifestValidationError
 
 
 # Canonical JSON Schema for AgentManifest

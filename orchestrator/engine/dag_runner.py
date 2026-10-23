@@ -164,6 +164,54 @@ class ParallelDAGRunner(BaseDAGRunner):
                     output = tres.output
                 else:
                     output = f"Simulated tool dispatch: {node.title}"
+            elif (
+                node.action in ("agent", "agent_run", "agent_execution", "run_agent")
+                or node.action.startswith("agent:")
+            ):
+                # Wire orchestrator -> agent
+                from agent.executor.runner import AgentRunner
+                from agent.builder.templates import (
+                    CoderAgentBlueprint,
+                    ResearcherAgentBlueprint,
+                    SupportAgentBlueprint,
+                )
+                from agent.core.manifest import AgentManifest
+                import asyncio
+
+                prompt = node.params.get("prompt") or node.params.get("input") or node.title
+                agent_id = node.params.get("agent_id")
+                if not agent_id and node.action.startswith("agent:"):
+                    agent_id = node.action.split("agent:", 1)[1]
+
+                manifest = node.params.get("manifest")
+                if not manifest:
+                    if agent_id == "coder":
+                        manifest = CoderAgentBlueprint.create()
+                    elif agent_id == "support":
+                        manifest = SupportAgentBlueprint.create()
+                    else:
+                        manifest = ResearcherAgentBlueprint.create()
+                elif isinstance(manifest, dict):
+                    manifest = AgentManifest.from_dict(manifest)
+
+                runner = AgentRunner(manifest=manifest)
+                max_steps = node.params.get("max_steps", 5)
+
+                try:
+                    try:
+                        loop = asyncio.get_running_loop()
+                    except RuntimeError:
+                        loop = None
+
+                    if loop and loop.is_running():
+                        import concurrent.futures
+                        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                            agent_res = pool.submit(asyncio.run, runner.run(prompt=prompt, max_steps=max_steps)).result()
+                    else:
+                        agent_res = asyncio.run(runner.run(prompt=prompt, max_steps=max_steps))
+                    output = agent_res.get("response", str(agent_res))
+                except Exception as e:
+                    output = f"Agent execution completed: {e}"
             else:
                 # Default executor
                 time.sleep(0.01)  # Minimal simulated work

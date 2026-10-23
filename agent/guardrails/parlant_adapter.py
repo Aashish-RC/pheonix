@@ -2,8 +2,8 @@
 
 from typing import Any, Dict, List, Optional
 import httpx
-from core.manifest import GuardrailConfig
-from core.exceptions import GuardrailViolationError
+from agent.core.manifest import GuardrailConfig
+from agent.core.exceptions import GuardrailViolationError
 
 
 class ParlantAdapter:

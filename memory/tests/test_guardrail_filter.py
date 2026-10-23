@@ -10,8 +10,8 @@ import os
 import shutil
 import tempfile
 import pytest
-from engine import MemoryEngine, SecurityPolicyViolationError
-from config import (
+from memory.engine import MemoryEngine, SecurityPolicyViolationError
+from memory.config import (
     MemoryConfig,
     WorkingMemoryBackend,
     FactStoreBackend,

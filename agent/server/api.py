@@ -4,14 +4,14 @@ from typing import Any, Dict, List, Optional
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel, Field
 
-from core.manifest import AgentManifest
-from core.event_bus import default_event_bus
-from builder.schema_validator import SchemaValidator
-from builder.compiler import ManifestCompiler
-from builder.templates import CoderAgentBlueprint, ResearcherAgentBlueprint, SupportAgentBlueprint
-from executor.runner import AgentRunner
-from memory.manager import default_memory_manager
-from config import default_config
+from agent.core.manifest import AgentManifest
+from agent.core.event_bus import default_event_bus
+from agent.builder.schema_validator import SchemaValidator
+from agent.builder.compiler import ManifestCompiler
+from agent.builder.templates import CoderAgentBlueprint, ResearcherAgentBlueprint, SupportAgentBlueprint
+from agent.executor.runner import AgentRunner
+from agent.memory.manager import default_memory_manager
+from agent.config import default_config
 
 app = FastAPI(
     title="Pheonix Agent Layer API",

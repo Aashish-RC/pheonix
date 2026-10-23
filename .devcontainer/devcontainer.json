@@ -1,10 +1,14 @@
 {
   "name": "Pheonix Development Environment",
-  "image": "mcr.microsoft.com/devcontainers/universal:latest",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11-bookworm",
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {
       "version": "latest",
       "enableMoby": false
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts",
+      "pnpmVersion": "latest"
     }
   },
   "forwardPorts": [
@@ -51,11 +55,11 @@
       "onAutoForward": "notify"
     }
   },
-  "postCreateCommand": "bash -c 'if [ ! -f .env ]; then cp .env.example .env; fi && pip install -e \".[all]\" && pnpm --dir model-gateway install'",
+  "postCreateCommand": "bash -c 'if [ ! -f .env ]; then cp .env.example .env; fi && pip install --no-cache-dir -e \".[all]\" && pnpm --dir model-gateway install'",
   "customizations": {
     "vscode": {
       "settings": {
-        "python.defaultInterpreterPath": "/home/codespace/.python/current/bin/python"
+        "python.defaultInterpreterPath": "/usr/local/bin/python"
       },
       "extensions": [
         "ms-python.python",

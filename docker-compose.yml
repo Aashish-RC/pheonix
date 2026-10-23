@@ -3,6 +3,7 @@ version: "3.8"
 services:
   # Vector Store for Memory Engine & Embeddings
   qdrant:
+    profiles: ["core"]
     image: qdrant/qdrant:v1.8.4
     container_name: pheonix-qdrant
     restart: unless-stopped
@@ -16,6 +17,7 @@ services:
 
   # Local Model Serving for Offline / Dev Execution
   ollama:
+    profiles: ["core"]
     image: ollama/ollama:latest
     container_name: pheonix-ollama
     restart: unless-stopped
@@ -26,6 +28,7 @@ services:
 
   # Global Fast Search Engine
   meilisearch:
+    profiles: ["core"]
     image: getmeili/meilisearch:v1.7.3
     container_name: pheonix-meilisearch
     restart: unless-stopped
@@ -40,6 +43,7 @@ services:
 
   # Novu self-hosted stack
   novu-redis:
+    profiles: ["notifications"]
     image: redis:7-alpine
     container_name: pheonix-novu-redis
     restart: unless-stopped
@@ -50,6 +54,7 @@ services:
       retries: 5
 
   novu-mongodb:
+    profiles: ["notifications"]
     image: mongo:8.0.17
     container_name: pheonix-novu-mongodb
     restart: unless-stopped
@@ -77,6 +82,7 @@ services:
       start_period: 20s
 
   novu-api:
+    profiles: ["notifications"]
     image: ghcr.io/novuhq/novu/api:3.19.0
     container_name: pheonix-novu-api
     restart: unless-stopped
@@ -133,6 +139,7 @@ services:
       start_period: 40s
 
   novu-worker:
+    profiles: ["notifications"]
     image: ghcr.io/novuhq/novu/worker:3.19.0
     container_name: pheonix-novu-worker
     restart: unless-stopped
@@ -181,6 +188,7 @@ services:
       start_period: 20s
 
   novu-ws:
+    profiles: ["notifications"]
     image: ghcr.io/novuhq/novu/ws:3.19.0
     container_name: pheonix-novu-ws
     restart: unless-stopped
@@ -217,6 +225,7 @@ services:
       start_period: 40s
 
   novu-dashboard:
+    profiles: ["notifications"]
     image: ghcr.io/novuhq/novu/dashboard:3.19.0
     container_name: pheonix-novu-dashboard
     restart: unless-stopped
@@ -243,6 +252,7 @@ services:
 
   # Local Mock SMTP Server for Email Testing
   smtp:
+    profiles: ["notifications"]
     image: axllent/mailpit:v1.15
     container_name: pheonix-mailpit
     restart: unless-stopped
@@ -252,6 +262,7 @@ services:
 
   # High-Performance Model Gateway Service
   model-gateway:
+    profiles: ["core"]
     build:
       context: ./model-gateway
       dockerfile: Dockerfile

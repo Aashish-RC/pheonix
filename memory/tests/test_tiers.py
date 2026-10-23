@@ -5,11 +5,11 @@ import tempfile
 from uuid import uuid4
 import pytest
 
-from core.models import Turn, TurnRole, FactItem, FactCategory, MemoryRecord
-from tiers.working.in_memory import InMemoryWorkingMemory
-from tiers.facts.sqlite_adapter import SQLiteFactStore
-from tiers.semantic.qdrant_adapter import QdrantAdapter
-from embeddings.embedder import LocalHashEmbedder
+from memory.core.models import Turn, TurnRole, FactItem, FactCategory, MemoryRecord
+from memory.tiers.working.in_memory import InMemoryWorkingMemory
+from memory.tiers.facts.sqlite_adapter import SQLiteFactStore
+from memory.tiers.semantic.qdrant_adapter import QdrantAdapter
+from memory.embeddings.embedder import LocalHashEmbedder
 
 
 def test_tier1_in_memory_and_wal():

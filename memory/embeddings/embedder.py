@@ -6,9 +6,9 @@ import re
 from typing import List, Optional
 import numpy as np
 
-from core.interfaces import BaseEmbedder
-from core.exceptions import EmbeddingError
-from config import MemoryConfig, EmbeddingBackend
+from memory.core.interfaces import BaseEmbedder
+from memory.core.exceptions import EmbeddingError
+from memory.config import MemoryConfig, EmbeddingBackend
 
 
 class LocalHashEmbedder(BaseEmbedder):
@@ -116,7 +116,7 @@ class OpenAIEmbedder(BaseEmbedder):
 def get_embedder(config: Optional[MemoryConfig] = None) -> BaseEmbedder:
     """Factory helper to obtain the configured embedder instance."""
     if config is None:
-        from config import default_config
+        from memory.config import default_config
         config = default_config
 
     if config.embedding_backend == EmbeddingBackend.OPENAI and config.openai_api_key:

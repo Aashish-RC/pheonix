@@ -2,10 +2,10 @@
 
 import os
 import pytest
-from memory.manager import MemoryManager
-from memory.tiers.working import WorkingMemoryTier
-from memory.tiers.facts import FactStoreTier
-from memory.tiers.vector import VectorMemoryTier
+from agent.memory.manager import MemoryManager
+from agent.memory.tiers.working import WorkingMemoryTier
+from agent.memory.tiers.facts import FactStoreTier
+from agent.memory.tiers.vector import VectorMemoryTier
 
 
 @pytest.fixture

@@ -1,9 +1,9 @@
 """End-to-End Test: Builder graph compile -> Executor run test."""
 
 import pytest
-from builder.compiler import ManifestCompiler
-from executor.runner import AgentRunner
-from core.event_bus import default_event_bus, EventType
+from agent.builder.compiler import ManifestCompiler
+from agent.executor.runner import AgentRunner
+from agent.core.event_bus import default_event_bus, EventType
 
 
 @pytest.mark.asyncio

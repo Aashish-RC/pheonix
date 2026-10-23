@@ -6,16 +6,16 @@ import time
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
-from core.manifest import AgentManifest
-from core.event_bus import EventBus, AgentEvent, EventType, default_event_bus
-from core.exceptions import RunnerExecutionError, GuardrailViolationError
+from agent.core.manifest import AgentManifest
+from agent.core.event_bus import EventBus, AgentEvent, EventType, default_event_bus
+from agent.core.exceptions import RunnerExecutionError, GuardrailViolationError
 from .tools.base import ToolContext, ToolResult
 from .tools.registry import ToolRegistry, default_tool_registry
 from .subagent_manager import SubagentManager
-from memory.manager import MemoryManager, default_memory_manager
-from guardrails.filter import GuardrailFilter
-from sandbox.local_docker_adapter import LocalDockerSandboxAdapter
-from sandbox.e2b_adapter import E2BSandboxAdapter
+from agent.memory.manager import MemoryManager, default_memory_manager
+from agent.guardrails.filter import GuardrailFilter
+from agent.sandbox.local_docker_adapter import LocalDockerSandboxAdapter
+from agent.sandbox.e2b_adapter import E2BSandboxAdapter
 
 
 class AgentRunner:

@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import Dict, List
 import threading
 
-from core.interfaces import BaseWorkingMemory
-from core.models import Turn
+from memory.core.interfaces import BaseWorkingMemory
+from memory.core.models import Turn
 
 
 class InMemoryWorkingMemory(BaseWorkingMemory):

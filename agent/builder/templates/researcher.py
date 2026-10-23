@@ -1,6 +1,6 @@
 """Pre-packaged Agent Blueprint: Deep Researcher."""
 
-from core.manifest import (
+from agent.core.manifest import (
     AgentManifest,
     AgentMetadata,
     RuntimeConfig,

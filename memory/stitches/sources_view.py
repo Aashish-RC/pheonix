@@ -1,7 +1,7 @@
 """Memory Sources View Builder for inspecting provenance, source events, and confidence."""
 
 from typing import List
-from core.models import (
+from memory.core.models import (
     FactItem,
     MemoryRecord,
     MemorySourceItem,

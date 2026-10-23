@@ -5,8 +5,8 @@ import httpx
 
 from .base import BaseTool, ToolContext, ToolResult
 from .builtin import WebSearchTool, CalculatorTool, FileIOTool
-from core.manifest import ToolDefinition
-from core.exceptions import ToolExecutionError
+from agent.core.manifest import ToolDefinition
+from agent.core.exceptions import ToolExecutionError
 
 
 class FunctionalTool(BaseTool):
@@ -135,8 +135,54 @@ class ToolRegistry:
             self.register(tool)
             return tool
 
-        # Default fallback
+        elif tool_def.type in ("mcp", "tools_mcp") or getattr(tool_def, "mcp_server", None):
+            # Dedicated MCP tool routed through tools_mcp dispatcher
+            async def run_mcp_tool(params: Dict[str, Any], ctx: ToolContext):
+                try:
+                    from tools_mcp.runner.dispatcher import ToolDispatcher
+                    from tools_mcp.core.models import ToolInvocation
+                    td = ToolDispatcher()
+                    inv = ToolInvocation(tool_name=tool_def.name, arguments=params)
+                    res = td.dispatch(inv)
+                    return ToolResult(
+                        success=res.success,
+                        output=res.output,
+                        error=res.error,
+                        execution_time_ms=res.duration_ms,
+                    )
+                except Exception as e:
+                    return ToolResult(
+                        success=False,
+                        output=None,
+                        error=f"MCP tool '{tool_def.name}' error: {e}",
+                    )
+
+            tool = FunctionalTool(
+                name=tool_def.name,
+                description=tool_def.description or f"MCP tool {tool_def.name}",
+                func=run_mcp_tool,
+                parameters_schema=tool_def.parameters or {},
+            )
+            self.register(tool)
+            return tool
+
+        # Default fallback: check if tool is present in tools_mcp registry
         async def fallback_exec(params: Dict[str, Any], ctx: ToolContext):
+            try:
+                from tools_mcp.runner.dispatcher import ToolDispatcher
+                from tools_mcp.core.models import ToolInvocation
+                td = ToolDispatcher()
+                if td.registry.get_tool(tool_def.name):
+                    inv = ToolInvocation(tool_name=tool_def.name, arguments=params)
+                    res = td.dispatch(inv)
+                    return ToolResult(
+                        success=res.success,
+                        output=res.output,
+                        error=res.error,
+                        execution_time_ms=res.duration_ms,
+                    )
+            except Exception:
+                pass
             return ToolResult(
                 success=True,
                 output=f"Executed tool {tool_def.name} with params {params}",

@@ -1,10 +1,10 @@
 """Test suite for Sandbox execution, isolation, and security policy checks."""
 
 import pytest
-from core.manifest import SandboxConfig
-from core.exceptions import SandboxExecutionError
-from sandbox.local_docker_adapter import LocalDockerSandboxAdapter
-from sandbox.e2b_adapter import E2BSandboxAdapter
+from agent.core.manifest import SandboxConfig
+from agent.core.exceptions import SandboxExecutionError
+from agent.sandbox.local_docker_adapter import LocalDockerSandboxAdapter
+from agent.sandbox.e2b_adapter import E2BSandboxAdapter
 
 
 @pytest.mark.asyncio

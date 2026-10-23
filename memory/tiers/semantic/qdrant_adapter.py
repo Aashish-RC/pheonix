@@ -14,9 +14,9 @@ from qdrant_client.models import (
     PointIdsList,
 )
 
-from core.interfaces import BaseVectorStore
-from core.models import MemoryRecord, utc_now
-from core.exceptions import AdapterConnectionError
+from memory.core.interfaces import BaseVectorStore
+from memory.core.models import MemoryRecord, utc_now
+from memory.core.exceptions import AdapterConnectionError
 
 
 class QdrantAdapter(BaseVectorStore):

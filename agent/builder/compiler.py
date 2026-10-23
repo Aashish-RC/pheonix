@@ -1,7 +1,7 @@
 """Manifest Compiler: Compiles Visual Graph/Node Topologies (Langflow / React Flow) into AgentManifest."""
 
 from typing import Any, Dict, List, Optional
-from core.manifest import (
+from agent.core.manifest import (
     AgentManifest,
     AgentMetadata,
     RuntimeConfig,
@@ -14,7 +14,7 @@ from core.manifest import (
     SubagentConfig,
 )
 from .schema_validator import SchemaValidator
-from core.exceptions import ManifestValidationError
+from agent.core.exceptions import ManifestValidationError
 
 
 class ManifestCompiler:

@@ -3,9 +3,9 @@
 import os
 from uuid import UUID
 import pytest
-from core.models import TurnRole
-from engine import MemoryEngine
-from config import MemoryConfig, WorkingMemoryBackend, FactStoreBackend, VectorStoreBackend
+from memory.core.models import TurnRole
+from memory.engine import MemoryEngine
+from memory.config import MemoryConfig, WorkingMemoryBackend, FactStoreBackend, VectorStoreBackend
 
 
 @pytest.fixture

@@ -7,8 +7,8 @@ from typing import Dict, List, Optional
 from uuid import UUID
 import numpy as np
 
-from core.interfaces import BaseVectorStore
-from core.models import MemoryRecord, utc_now
+from memory.core.interfaces import BaseVectorStore
+from memory.core.models import MemoryRecord, utc_now
 
 
 class ChromaAdapter(BaseVectorStore):

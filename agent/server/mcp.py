@@ -2,11 +2,11 @@
 
 import json
 from typing import Any, Dict, List
-from core.manifest import AgentManifest
-from builder.schema_validator import SchemaValidator
-from builder.templates import CoderAgentBlueprint, ResearcherAgentBlueprint
-from executor.runner import AgentRunner
-from memory.manager import default_memory_manager
+from agent.core.manifest import AgentManifest
+from agent.builder.schema_validator import SchemaValidator
+from agent.builder.templates import CoderAgentBlueprint, ResearcherAgentBlueprint
+from agent.executor.runner import AgentRunner
+from agent.memory.manager import default_memory_manager
 
 
 class AgentMCPServer:

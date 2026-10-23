@@ -3,8 +3,8 @@
 import os
 import time
 from typing import Any, Dict, Optional
-from core.manifest import SandboxConfig
-from core.exceptions import SandboxExecutionError
+from agent.core.manifest import SandboxConfig
+from agent.core.exceptions import SandboxExecutionError
 
 
 class E2BSandboxAdapter:

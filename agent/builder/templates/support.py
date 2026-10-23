@@ -1,6 +1,6 @@
 """Pre-packaged Agent Blueprint: Enterprise Customer Support."""
 
-from core.manifest import (
+from agent.core.manifest import (
     AgentManifest,
     AgentMetadata,
     RuntimeConfig,

@@ -4,8 +4,8 @@ import time
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
-from config import MemoryConfig, default_config, WorkingMemoryBackend, FactStoreBackend, VectorStoreBackend
-from core.models import (
+from memory.config import MemoryConfig, default_config, WorkingMemoryBackend, FactStoreBackend, VectorStoreBackend
+from memory.core.models import (
     ContextPackage,
     FactItem,
     MemoryRecord,
@@ -14,24 +14,24 @@ from core.models import (
     MemorySourcesView,
     utc_now,
 )
-from core.interfaces import (
+from memory.core.interfaces import (
     BaseWorkingMemory,
     BaseFactStore,
     BaseVectorStore,
     BaseEmbedder,
 )
-from tiers.working.in_memory import InMemoryWorkingMemory
-from tiers.working.redis_adapter import RedisWorkingMemory
-from tiers.facts.sqlite_adapter import SQLiteFactStore
-from tiers.facts.postgres_adapter import PostgreSQLFactStore
-from tiers.semantic.qdrant_adapter import QdrantAdapter
-from tiers.semantic.chroma_adapter import ChromaAdapter
-from embeddings.embedder import get_embedder
-from stitches.extractor import FactExtractor
-from stitches.conflict_resolver import ConflictResolver
-from stitches.synthesizer import ContextSynthesizer
-from stitches.consolidation import ConsolidationEngine, ConsolidationResult
-from stitches.sources_view import MemorySourcesViewBuilder
+from memory.tiers.working.in_memory import InMemoryWorkingMemory
+from memory.tiers.working.redis_adapter import RedisWorkingMemory
+from memory.tiers.facts.sqlite_adapter import SQLiteFactStore
+from memory.tiers.facts.postgres_adapter import PostgreSQLFactStore
+from memory.tiers.semantic.qdrant_adapter import QdrantAdapter
+from memory.tiers.semantic.chroma_adapter import ChromaAdapter
+from memory.embeddings.embedder import get_embedder
+from memory.stitches.extractor import FactExtractor
+from memory.stitches.conflict_resolver import ConflictResolver
+from memory.stitches.synthesizer import ContextSynthesizer
+from memory.stitches.consolidation import ConsolidationEngine, ConsolidationResult
+from memory.stitches.sources_view import MemorySourcesViewBuilder
 
 
 class SecurityPolicyViolationError(Exception):

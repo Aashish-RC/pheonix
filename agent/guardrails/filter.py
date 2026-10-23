@@ -2,8 +2,8 @@
 
 import re
 from typing import Any, Dict, List, Optional
-from core.manifest import GuardrailConfig
-from core.exceptions import GuardrailViolationError
+from agent.core.manifest import GuardrailConfig
+from agent.core.exceptions import GuardrailViolationError
 from .parlant_adapter import ParlantAdapter
 
 

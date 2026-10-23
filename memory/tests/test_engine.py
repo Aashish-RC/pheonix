@@ -4,9 +4,9 @@ import tempfile
 import shutil
 import pytest
 
-from engine import MemoryEngine
-from config import MemoryConfig, WorkingMemoryBackend, FactStoreBackend, VectorStoreBackend, EmbeddingBackend
-from core.models import TurnRole
+from memory.engine import MemoryEngine
+from memory.config import MemoryConfig, WorkingMemoryBackend, FactStoreBackend, VectorStoreBackend, EmbeddingBackend
+from memory.core.models import TurnRole
 
 
 @pytest.fixture
@@ -191,7 +191,7 @@ def test_qdrant_adapter_health_and_retrieval():
     Validates Task O1: Qdrant adapter connection health check and vector indexing.
     """
     from memory.embeddings.qdrant_adapter import QdrantAdapter
-    from core.models import MemoryRecord, utc_now
+    from memory.core.models import MemoryRecord, utc_now
     from uuid import uuid4
 
     adapter = QdrantAdapter(location=":memory:", collection_name="test_health_col", dim=128)

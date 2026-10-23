@@ -1,10 +1,10 @@
 """Test suite for AgentManifest schema validation, rejection, and serialization."""
 
 import pytest
-from core.manifest import AgentManifest, AgentMetadata, RuntimeConfig
-from builder.schema_validator import SchemaValidator
-from builder.templates import CoderAgentBlueprint, ResearcherAgentBlueprint, SupportAgentBlueprint
-from core.exceptions import ManifestValidationError
+from agent.core.manifest import AgentManifest, AgentMetadata, RuntimeConfig
+from agent.builder.schema_validator import SchemaValidator
+from agent.builder.templates import CoderAgentBlueprint, ResearcherAgentBlueprint, SupportAgentBlueprint
+from agent.core.exceptions import ManifestValidationError
 
 
 def test_valid_manifest_creation():

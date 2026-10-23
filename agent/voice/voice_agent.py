@@ -2,7 +2,7 @@
 
 import asyncio
 from typing import Any, AsyncGenerator, Callable, Dict, Optional
-from core.manifest import AgentManifest
+from agent.core.manifest import AgentManifest
 from .livekit_adapter import LiveKitAdapter
 
 

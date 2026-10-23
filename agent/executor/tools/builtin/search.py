@@ -32,7 +32,25 @@ class WebSearchTool(BaseTool):
                 execution_time_ms=(time.perf_counter() - start_time) * 1000
             )
 
-        # In production or test environments, returns structured search results
+        # 1. Route through canonical tools_mcp -> web_search pipeline
+        try:
+            from tools_mcp.runner.dispatcher import ToolDispatcher
+            from tools_mcp.core.models import ToolInvocation
+            dispatcher = ToolDispatcher()
+            inv = ToolInvocation(tool_name="web_search", arguments={"query": query, "num_results": num_results})
+            res = dispatcher.dispatch(inv)
+            duration = (time.perf_counter() - start_time) * 1000
+            if res.success and res.output:
+                return ToolResult(
+                    success=True,
+                    output=res.output,
+                    execution_time_ms=duration,
+                    metadata={"query": query, "count": len(res.output) if isinstance(res.output, list) else 1, "source": "tools_mcp"}
+                )
+        except Exception:
+            pass
+
+        # 2. Fallback to synthetic search results
         results = [
             {
                 "title": f"Result for '{query}' #{i+1}",
@@ -47,5 +65,5 @@ class WebSearchTool(BaseTool):
             success=True,
             output=results,
             execution_time_ms=duration,
-            metadata={"query": query, "count": len(results)}
+            metadata={"query": query, "count": len(results), "source": "synthetic"}
         )
