@@ -16,3 +16,7 @@ dependencies = [
 testpaths = ["tests"]
 pythonpath = ["..", "."]
 asyncio_mode = "auto"
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["*"]
+exclude = ["tests*"]

@@ -15,3 +15,7 @@ dependencies = [
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
 testpaths = ["tests"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["*"]
+exclude = ["tests*"]
