@@ -9,19 +9,14 @@ import tempfile
 import pytest
 from pathlib import Path
 
-# Add root paths
-ROOT = Path(__file__).resolve().parent.parent.parent
-if str(ROOT / "memory") not in sys.path:
-    sys.path.insert(0, str(ROOT / "memory"))
-
 from observability.core.tracer import TelemetryCollector, TelemetrySpan, TraceContext
 from orchestrator.planner.multi_step_planner import MultiStepPlanner
 from orchestrator.engine.dag_runner import ParallelDAGRunner
 from orchestrator.core.models import TaskStatus
 from serving.models import InferenceRequest, ResourceLimits
 from serving.core.engine import ModelServingEngine
-from engine import MemoryEngine
-from config import (
+from memory.engine import MemoryEngine
+from memory.config import (
     MemoryConfig,
     WorkingMemoryBackend,
     FactStoreBackend,
