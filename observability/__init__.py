@@ -13,7 +13,7 @@ from .core.store import ObservabilityStore
 from .core.reconciler import PricingReconciler
 from .core.logger import UsageCostLogger
 from .core.view import PersonalUsageViewBuilder
-from .core.tracer import TelemetrySpan, TelemetryCollector, TraceContext
+from .core.tracer import TelemetrySpan, TelemetryCollector, TraceContext, TokenUsageEvent
 from .client import ObservabilityClient
 
 __all__ = [
@@ -28,5 +28,6 @@ __all__ = [
     "TelemetrySpan",
     "TelemetryCollector",
     "TraceContext",
+    "TokenUsageEvent",
     "ObservabilityClient",
 ]

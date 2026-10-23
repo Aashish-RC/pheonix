@@ -63,3 +63,7 @@ class StorageClient:
     def get_quota(self, project_id: str) -> StorageQuota:
         """Retrieves storage quota and utilization for a project."""
         return self.engine.get_quota(project_id)
+
+    def register_upload_webhook(self, callback) -> None:
+        """Registers a callback to be invoked on file uploads."""
+        self.engine.register_upload_webhook(callback)

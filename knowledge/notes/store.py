@@ -139,6 +139,46 @@ class NoteStore(BaseNoteStore):
                     conn.close()
         return note
 
+    def index_document(
+        self,
+        file_id: str,
+        content: Any,
+        filename: str,
+        project_id: str = "default",
+        tags: Optional[List[str]] = None,
+        metadata: Optional[dict] = None,
+    ) -> Note:
+        """Indexes an uploaded document from storage directly into knowledge base."""
+        import uuid
+        if isinstance(content, bytes):
+            try:
+                text_content = content.decode("utf-8")
+            except Exception:
+                text_content = f"Stored binary asset: {filename} (ID: {file_id}, size: {len(content)} bytes)"
+        else:
+            text_content = str(content)
+
+        meta = {
+            "source": "storage",
+            "storage_file_id": file_id,
+            "filename": filename,
+            **(metadata or {}),
+        }
+        clean_tags = list(tags or [])
+        if "storage" not in clean_tags:
+            clean_tags.append("storage")
+
+        note = Note(
+            id=uuid.uuid4(),
+            project_id=project_id,
+            title=filename,
+            slug=NoteParser.slugify(filename),
+            content=text_content,
+            tags=clean_tags,
+            metadata=meta,
+        )
+        return self.save_note(note)
+
     def get_note(self, note_id: UUID, project_id: Optional[str] = None) -> Optional[Note]:
         query = "SELECT * FROM notes WHERE id = ?"
         params: list = [str(note_id)]
@@ -198,3 +238,37 @@ class NoteStore(BaseNoteStore):
             finally:
                 if self._memory_conn is None:
                     conn.close()
+
+    def index_document(
+        self,
+        file_id: str,
+        content: Any,
+        filename: str,
+        project_id: str = "default",
+        tags: Optional[List[str]] = None,
+        metadata: Optional[dict] = None,
+    ) -> Note:
+        """Indexes a storage file into the personal knowledge base note store."""
+        raw_text = (
+            content.decode("utf-8", errors="ignore")
+            if isinstance(content, (bytes, bytearray))
+            else str(content)
+        )
+        title = filename or f"Document {file_id}"
+        meta = metadata.copy() if metadata else {}
+        meta["file_id"] = file_id
+        meta["source"] = "storage"
+        meta["filename"] = filename
+
+        all_tags = list(tags) if tags else []
+        if "storage" not in all_tags:
+            all_tags.append("storage")
+
+        note = Note(
+            title=title,
+            content=raw_text,
+            project_id=project_id,
+            tags=all_tags,
+            metadata=meta,
+        )
+        return self.save_note(note)

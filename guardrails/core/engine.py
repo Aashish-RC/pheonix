@@ -5,7 +5,7 @@ configurable severity thresholds (G7), and security audit logging (G8).
 """
 
 import os
-from typing import Optional, Literal
+from typing import Optional, Literal, Dict, List, Tuple, Any
 from ..models import (
     SafetyCheckRequest,
     SafetyCheckResult,
@@ -31,16 +31,108 @@ class GuardrailsEngine:
         pii_detector: Optional[PIIDetector] = None,
         audit_logger: Optional[GuardrailAuditLogger] = None,
         severity_threshold: Optional[SeverityLevel] = None,
+        rules_client: Optional[Any] = None,
     ):
         self.crisis_handler = crisis_handler or CrisisHandler()
         self.jailbreak_detector = jailbreak_detector or JailbreakDetector()
         self.pii_detector = pii_detector or PIIDetector()
         self.audit_logger = audit_logger or GuardrailAuditLogger()
-        
+        self._compiled_rule_patterns: Dict[str, Any] = {}
+        self.rules_client = None
+
         env_threshold = os.environ.get("GUARDRAILS_SEVERITY_THRESHOLD", "warn").lower()
         self.severity_threshold: SeverityLevel = severity_threshold or (
             env_threshold if env_threshold in SEVERITY_ORDER else "warn"
         )
+
+        if rules_client is not None:
+            self.attach_rules_client(rules_client)
+
+    def attach_rules_client(self, rules_client: Any) -> None:
+        """Wires rules.client event listener and compiles initial rules into runtime regexes/taxonomies."""
+        self.rules_client = rules_client
+        # Initial compile of cached rules
+        if hasattr(rules_client, "_local_rules"):
+            for rule in rules_client._local_rules.values():
+                self._compile_rule(rule)
+
+        # Subscribe to live push updates if engine supports subscription
+        if hasattr(rules_client, "engine") and hasattr(rules_client.engine, "subscribe"):
+            try:
+                rules_client.engine.subscribe(
+                    subscriber_id=f"guardrails_engine_{id(self)}",
+                    callback=self._on_rule_change,
+                    scope_filter=getattr(rules_client, "scope", None),
+                )
+            except Exception:
+                pass
+
+    def _compile_rule(self, rule: Any) -> None:
+        """Compiles a rule definition into runtime regex and condition patterns."""
+        if not getattr(rule, "enabled", True):
+            self._compiled_rule_patterns.pop(getattr(rule, "rule_id", ""), None)
+            return
+
+        import re
+        rule_id = getattr(rule, "rule_id", str(id(rule)))
+        conditions = getattr(rule, "conditions", [])
+        patterns = []
+        for cond in conditions:
+            field = getattr(cond, "field", "")
+            val = getattr(cond, "value", "")
+            op = getattr(cond, "operator", "==")
+            if field in ("prompt", "text", "query", "content", "keyword") and isinstance(val, str):
+                try:
+                    if op in ("contains", "=="):
+                        patterns.append(re.compile(re.escape(val), re.IGNORECASE))
+                    elif op in ("regex", "matches"):
+                        patterns.append(re.compile(val, re.IGNORECASE))
+                except Exception:
+                    pass
+
+        self._compiled_rule_patterns[rule_id] = {
+            "rule": rule,
+            "patterns": patterns,
+            "action": getattr(rule, "action", "block"),
+            "message": getattr(rule, "message", None) or getattr(rule, "name", "Rule violation"),
+        }
+
+    def _on_rule_change(self, event: Any) -> None:
+        """Push event handler triggered directly when a rule changes in rules layer."""
+        event_type = getattr(event, "event_type", "")
+        rule = getattr(event, "rule", None)
+        if not rule:
+            return
+
+        rule_id = getattr(rule, "rule_id", "")
+        if event_type in ("CREATED", "UPDATED", "TOGGLED"):
+            self._compile_rule(rule)
+        elif event_type == "DELETED":
+            self._compiled_rule_patterns.pop(rule_id, None)
+
+    def _evaluate_compiled_rules(self, text: str) -> Tuple[bool, Optional[str], List[str]]:
+        """Evaluates input text against compiled dynamic rules."""
+        matched_patterns = []
+        for rule_id, data in list(self._compiled_rule_patterns.items()):
+            rule = data["rule"]
+            if not getattr(rule, "enabled", True):
+                continue
+            for pat in data["patterns"]:
+                if pat.search(text):
+                    matched_patterns.append(pat.pattern)
+                    return True, data["message"], matched_patterns
+
+        # Also fallback to direct rules_client evaluate if available
+        if self.rules_client and hasattr(self.rules_client, "evaluate"):
+            try:
+                res = self.rules_client.evaluate({"prompt": text})
+                if not getattr(res, "allowed", True):
+                    reason = getattr(res, "reason", "Violated rule policy")
+                    return True, reason, [reason]
+            except Exception:
+                pass
+
+        return False, None, []
 
     def set_severity_threshold(self, threshold: SeverityLevel) -> None:
         """Programmatically update runtime safety threshold (allow, warn, redact, block, strict)."""
@@ -49,12 +141,14 @@ class GuardrailsEngine:
             raise ValueError(f"Invalid severity threshold '{threshold}'. Expected one of {list(SEVERITY_ORDER.keys())}")
         self.severity_threshold = clean
 
-    def evaluate(self, request: SafetyCheckRequest) -> SafetyCheckResult:
+    def evaluate(self, request: Any) -> SafetyCheckResult:
         """
         Evaluates input text sequentially across crisis, injection, and sanitization gates.
         Enforces configurable severity levels and writes non-allow events to the audit log.
         In strict mode, warnings and PII leaks escalate to block.
         """
+        if isinstance(request, str):
+            request = SafetyCheckRequest(prompt=request)
         text = request.prompt.strip()
         threshold_rank = SEVERITY_ORDER.get(self.severity_threshold, 1)
         is_strict = self.severity_threshold == "strict"
@@ -86,6 +180,22 @@ class GuardrailsEngine:
                 reason=f"Adversarial prompt injection or jailbreak detected: {', '.join(matches[:2])}",
                 crisis_response=None,
                 matched_patterns=matches,
+            )
+            self._log_if_needed(request, result)
+            return result
+
+        # Gate 2.5: Dynamic Compiled Rules Gate (from Rules Layer)
+        rule_blocked, rule_reason, rule_matches = self._evaluate_compiled_rules(text)
+        if rule_blocked:
+            action = "block" if (is_strict or SEVERITY_ORDER["block"] >= threshold_rank) else "warn"
+            result = SafetyCheckResult(
+                action=action,
+                severity="strict" if is_strict else "block",
+                threat_category="rule_violation",
+                sanitized_prompt=None if action == "block" else text,
+                reason=f"Blocked by dynamic rule: {rule_reason}",
+                crisis_response=None,
+                matched_patterns=rule_matches,
             )
             self._log_if_needed(request, result)
             return result

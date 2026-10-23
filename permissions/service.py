@@ -1,8 +1,9 @@
 """Permission Service: Unified facade integrating PolicyEngine, RiskScorer, ApprovalQueue, and AuditStore."""
 
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Union
 from .core.models import (
     ActionRequest,
+    ActionType,
     ApprovalDecision,
     ApprovalStatus,
     AuditEntry,
@@ -34,6 +35,37 @@ class PermissionService:
     def set_mode(self, new_mode: PermissionMode) -> None:
         """Dynamically switch between ALWAYS_ASK, ASK_ON_CHANGES, and AUTO_REVIEW."""
         self.mode = new_mode
+
+    def check_permission(
+        self,
+        action_type: Union[ActionType, str],
+        resource: str = "",
+        project_id: str = "default",
+        actor_id: str = "agent",
+        payload: Optional[Dict[str, Any]] = None,
+        override_mode: Optional[PermissionMode] = None,
+    ) -> ApprovalDecision:
+        """Convenience method to check permission directly without constructing ActionRequest."""
+        if isinstance(action_type, str):
+            try:
+                action_type_enum = ActionType(action_type)
+            except ValueError:
+                action_type_enum = (
+                    ActionType.EXEC_COMMAND
+                    if "exec" in action_type.lower() or "cmd" in action_type.lower()
+                    else ActionType.FS_WRITE
+                )
+        else:
+            action_type_enum = action_type
+
+        req = ActionRequest(
+            project_id=project_id,
+            actor_id=actor_id,
+            action_type=action_type_enum,
+            resource=resource,
+            payload=payload or {},
+        )
+        return self.request_action(req, override_mode=override_mode)
 
     def request_action(
         self,

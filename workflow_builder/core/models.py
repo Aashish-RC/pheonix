@@ -46,6 +46,48 @@ class WorkflowGraph(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=utc_now)
 
+    def to_plan_dag(
+        self,
+        project_id: str = "default",
+        budget_limit: float = 1.0,
+    ) -> Any:
+        """
+        Compiles the visual WorkflowGraph into an executable orchestrator PlanDAG.
+        Translates WorkflowNodes into PlanNodes and maps edge dependencies.
+        """
+        from orchestrator.core.models import PlanDAG, PlanNode, TaskStatus
+
+        edge_deps: Dict[str, List[str]] = {}
+        for edge in self.edges:
+            edge_deps.setdefault(edge.target_node_id, []).append(edge.source_node_id)
+
+        plan_nodes: Dict[str, PlanNode] = {}
+        for nid, node in self.nodes.items():
+            combined_deps = list(
+                dict.fromkeys(node.upstream_dependencies + edge_deps.get(nid, []))
+            )
+            plan_nodes[nid] = PlanNode(
+                id=nid,
+                title=node.label or node.action_name,
+                action=node.action_name,
+                params={
+                    **node.parameters,
+                    "node_type": node.node_type.value,
+                    "timeout_seconds": node.timeout_seconds,
+                },
+                depends_on=combined_deps,
+                status=TaskStatus.PENDING,
+            )
+
+        return PlanDAG(
+            id=self.workflow_id,
+            project_id=project_id,
+            title=self.name,
+            nodes=plan_nodes,
+            status=TaskStatus.PENDING,
+            budget_limit=budget_limit,
+        )
+
 
 class DescribeWorkflowRequest(BaseModel):
     prompt: str

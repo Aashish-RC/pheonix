@@ -3,7 +3,7 @@
 from pathlib import Path
 import shutil
 import tempfile
-from typing import Optional
+from typing import Any, Optional
 from .core.interfaces import BaseDeviceRunner, BaseSandboxManager
 from .core.models import (
     ExecutionRequest,
@@ -27,8 +27,13 @@ class SandboxManager(BaseSandboxManager):
         governor: Optional[SecurityGovernor] = None,
         device_runner: Optional[BaseDeviceRunner] = None,
         engine: Optional[BaseDeviceRunner] = None,
+        permission_service: Optional[Any] = None,
+        enforce_permissions: bool = False,
     ):
         self.governor = governor or SecurityGovernor()
+        self.permission_service = permission_service
+        self.enforce_permissions = enforce_permissions or os.getenv("PHEONIX_SANDBOX_PERMISSIONS") == "1"
+
         if engine or device_runner:
             self.runner = engine or device_runner
         else:
@@ -44,7 +49,48 @@ class SandboxManager(BaseSandboxManager):
         self,
         request: ExecutionRequest,
         raise_on_timeout: bool = False,
+        permission_service: Optional[Any] = None,
     ) -> SandboxResult:
+        perm_svc = permission_service or self.permission_service
+        if self.enforce_permissions or perm_svc is not None:
+            try:
+                from permissions import check_permission, ApprovalStatus, ActionType
+
+                # Intercept file writing
+                if request.files:
+                    decision = check_permission(
+                        ActionType.FS_WRITE,
+                        resource=",".join(request.files.keys()),
+                        project_id=request.project_id,
+                        service=perm_svc,
+                    )
+                    if decision.status not in (ApprovalStatus.APPROVED, ApprovalStatus.AUTO_APPROVED):
+                        return SandboxResult(
+                            request_id=request.id,
+                            status=SandboxStatus.BLOCKED,
+                            exit_code=126,
+                            stderr=f"Blocked by permissions gate (FS_WRITE): {decision.reason or 'Approval required'}",
+                        )
+
+                # Intercept privileged code / shell command execution
+                is_shell = request.language.lower() in ("shell", "bash", "sh", "cmd", "powershell")
+                exec_action = ActionType.EXEC_COMMAND if is_shell else ActionType.EXEC_CODE
+                decision = check_permission(
+                    exec_action,
+                    resource=request.code[:100],
+                    project_id=request.project_id,
+                    service=perm_svc,
+                )
+                if decision.status not in (ApprovalStatus.APPROVED, ApprovalStatus.AUTO_APPROVED):
+                    return SandboxResult(
+                        request_id=request.id,
+                        status=SandboxStatus.BLOCKED,
+                        exit_code=126,
+                        stderr=f"Blocked by permissions gate ({exec_action.value}): {decision.reason or 'Approval required'}",
+                    )
+            except ImportError:
+                pass
+
         # Create an isolated temporary workspace directory
         temp_scratch = tempfile.mkdtemp(prefix=f"pheonix_sb_{request.project_id}_")
 
@@ -66,6 +112,7 @@ class SandboxManager(BaseSandboxManager):
         timeout_seconds: Optional[float] = None,
         language: str = "python",
         raise_on_timeout: bool = True,
+        permission_service: Optional[Any] = None,
     ) -> SandboxResult:
         """Convenience method to execute code with optional timeout and automatic SandboxTimeoutError."""
         limits = ResourceLimits()
@@ -77,4 +124,8 @@ class SandboxManager(BaseSandboxManager):
             code=code,
             limits=limits,
         )
-        return self.run(req, raise_on_timeout=raise_on_timeout)
+        return self.run(
+            req,
+            raise_on_timeout=raise_on_timeout,
+            permission_service=permission_service,
+        )

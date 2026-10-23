@@ -122,6 +122,27 @@ export function createGatewayApp(options?: CreateGatewayAppOptions): {
     });
   }
 
+  // Dynamic Route Weights API (Recommender -> Model Gateway sync)
+  app.post('/v1/routes/:alias/weights', async (c) => {
+    const alias = c.req.param('alias');
+    const body = await c.req.json().catch(() => ({}));
+    const weights = body.weights || {};
+    const updated = router.updateWeights(alias, weights);
+    if (!updated) {
+      return c.json({ error: `Route alias '${alias}' not found.` }, 404);
+    }
+    return c.json({ status: 'ok', alias, weights });
+  });
+
+  app.get('/v1/routes/:alias', async (c) => {
+    const alias = c.req.param('alias');
+    const route = router.getRoute(alias);
+    if (!route) {
+      return c.json({ error: `Route alias '${alias}' not found.` }, 404);
+    }
+    return c.json({ route });
+  });
+
   // Token Counting API
   app.post('/v1/tokenize', async (c) => {
     const body = await c.req.json().catch(() => ({}));

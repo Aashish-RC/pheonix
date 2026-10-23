@@ -30,6 +30,28 @@ export class ModelRouter {
     this.routes.set(route.alias.toLowerCase(), route);
   }
 
+  public getRoute(alias: string): ModelRouteConfig | undefined {
+    return this.routes.get(alias.toLowerCase());
+  }
+
+  public updateWeights(alias: string, weights: Record<string, number>): boolean {
+    const route = this.routes.get(alias.toLowerCase());
+    if (!route) {
+      return false;
+    }
+    for (const target of route.targets) {
+      const fullId = `${target.provider}/${target.model}`;
+      if (weights[target.id] !== undefined) {
+        target.weight = weights[target.id];
+      } else if (weights[fullId] !== undefined) {
+        target.weight = weights[fullId];
+      } else if (weights[target.model] !== undefined) {
+        target.weight = weights[target.model];
+      }
+    }
+    return true;
+  }
+
   public resolveTargets(
     alias: string,
     promptPrefixForAffinity?: string,
@@ -95,7 +117,12 @@ export class ModelRouter {
       });
     }
 
-    // Default: Weighted / Order of declaration
+    if (route.strategy === 'weighted' || healthyPrimaries.some((t) => t.weight !== undefined)) {
+      // Sort descending by weight (higher weight first)
+      return [...healthyPrimaries].sort((a, b) => (b.weight ?? 1) - (a.weight ?? 1));
+    }
+
+    // Default: Order of declaration
     return healthyPrimaries;
   }
 

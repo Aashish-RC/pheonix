@@ -55,3 +55,16 @@ class OrchestratorBridge(BaseOrchestratorBridge):
             duration_ms=round(duration_ms, 2),
             outputs=outputs,
         )
+
+    def execute_with_orchestrator(
+        self,
+        graph: WorkflowGraph,
+        runner: Optional[Any] = None,
+        project_id: str = "default",
+    ) -> Any:
+        """Translates WorkflowGraph via to_plan_dag() and executes via orchestrator ParallelDAGRunner."""
+        from orchestrator.engine.dag_runner import ParallelDAGRunner
+
+        dag = graph.to_plan_dag(project_id=project_id)
+        active_runner = runner or ParallelDAGRunner()
+        return active_runner.run_plan(dag)

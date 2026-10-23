@@ -31,6 +31,7 @@ ThreatCategory = Literal[
     "crisis_disaster_distress",
     "crisis_generic_distress",
     "harmful_output",
+    "rule_violation",
     "none"
 ]
 

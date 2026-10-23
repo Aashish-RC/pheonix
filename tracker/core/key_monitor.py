@@ -73,6 +73,51 @@ class KeyMonitor:
         self._key_records[key_id] = status
         return status
 
+    def deduct_usage(
+        self,
+        provider: str,
+        tokens: int = 0,
+        cost_usd: float = 0.0,
+        key_id: Optional[str] = None,
+    ) -> Optional[KeyQuotaStatus]:
+        """Deducts quota by adding real token usage/cost from observability and updating alerts."""
+        prov = provider.lower()
+        target_record = None
+
+        if key_id and key_id in self._key_records:
+            target_record = self._key_records[key_id]
+        else:
+            for r in self._key_records.values():
+                if r.provider.lower() == prov and r.is_active:
+                    target_record = r
+                    break
+
+        if not target_record:
+            return None
+
+        deduction = cost_usd
+        if deduction <= 0.0 and tokens > 0:
+            deduction = round((tokens / 1000.0) * 0.002, 4)
+
+        target_record.current_spend_usd = round(target_record.current_spend_usd + deduction, 4)
+        if target_record.monthly_quota_usd > 0:
+            target_record.quota_used_percent = round(
+                (target_record.current_spend_usd / target_record.monthly_quota_usd) * 100.0, 1
+            )
+        else:
+            target_record.quota_used_percent = 0.0
+
+        if target_record.quota_used_percent >= 100.0:
+            target_record.alert_level = "exhausted"
+        elif target_record.quota_used_percent >= 85.0:
+            target_record.alert_level = "critical"
+        elif target_record.quota_used_percent >= 70.0:
+            target_record.alert_level = "warning"
+        else:
+            target_record.alert_level = "normal"
+
+        return target_record
+
     def purge_expired_keys(self, reference_date: Optional[date] = None) -> List[str]:
         """
         Purges expired keys or explicitly inactive keys with past expiry dates.

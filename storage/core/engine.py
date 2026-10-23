@@ -21,11 +21,18 @@ class StorageEngine:
         self,
         driver: Optional[StorageDriver] = None,
         quota_manager: Optional[QuotaManager] = None,
-        library: Optional[FileLibrary] = None
+        library: Optional[FileLibrary] = None,
+        auto_index_knowledge: bool = True,
     ):
         self.driver = driver or LocalFileSystemDriver()
         self.quotas = quota_manager or QuotaManager()
         self.library = library or FileLibrary()
+        self.auto_index_knowledge = auto_index_knowledge
+        self._upload_webhooks: List[Any] = []
+
+    def register_upload_webhook(self, callback: Any) -> None:
+        """Registers a webhook/callback invoked after every successful file upload."""
+        self._upload_webhooks.append(callback)
 
     def upload(
         self,
@@ -34,10 +41,12 @@ class StorageEngine:
         project_id: str = "default",
         owner_id: str = "anonymous",
         content_type: str = "application/octet-stream",
-        tags: Optional[List[str]] = None
+        tags: Optional[List[str]] = None,
+        auto_index_knowledge: Optional[bool] = None,
     ) -> StoredFile:
         """
-        Uploads an asset, applies quota limits, and deduplicates using SHA-256.
+        Uploads an asset, applies quota limits, deduplicates using SHA-256,
+        and triggers upload webhooks (including Knowledge Base indexing).
         """
         size_bytes = len(data)
         # 1. Enforce quota limits
@@ -68,6 +77,29 @@ class StorageEngine:
 
         self.library.add_file(stored_file)
         self.quotas.record_addition(project_id, size_bytes)
+
+        # 5. Trigger upload webhooks
+        for hook in list(self._upload_webhooks):
+            try:
+                hook(stored_file, data)
+            except Exception:
+                pass
+
+        # 6. Auto-index to knowledge if enabled
+        should_index = self.auto_index_knowledge if auto_index_knowledge is None else auto_index_knowledge
+        if should_index:
+            try:
+                from knowledge import index_document
+                index_document(
+                    file_id=stored_file.file_id,
+                    content=data,
+                    filename=stored_file.filename,
+                    project_id=stored_file.project_id,
+                    tags=stored_file.tags,
+                )
+            except Exception:
+                pass
+
         return stored_file
 
     def download(self, file_id: str) -> bytes:

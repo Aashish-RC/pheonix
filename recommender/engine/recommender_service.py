@@ -1,6 +1,6 @@
 """Pheonix Recommender Service: Evaluates candidates, arbitrates, and delivers decisions with transparent reasoning."""
 
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from ..core.interfaces import (
     BaseRecommenderService,
     BaseSecondOpinionArbiter,
@@ -9,9 +9,12 @@ from ..core.interfaces import (
 from ..core.models import (
     CandidateScore,
     ModelCandidate,
+    OptimizationGoal,
     RecommendationDecision,
     TaskProfile,
+    TaskType,
     ToolCandidate,
+    utc_now,
 )
 from .second_opinion import SecondOpinionArbiter
 from .telemetry_scorer import TelemetryScorer
@@ -136,3 +139,62 @@ class RecommenderService(BaseRecommenderService):
             second_opinion_triggered=second_opinion_triggered,
             second_opinion_notes=second_opinion_notes,
         )
+
+    def compute_route_weights(
+        self,
+        candidates: List[ModelCandidate],
+        task: Optional[TaskProfile] = None,
+    ) -> Dict[str, float]:
+        """
+        Dynamically computes routing priority weights (0.0 to 1.0 scale)
+        for model candidates based on empirical composite scores.
+        """
+        if not candidates:
+            return {}
+
+        task_profile = task or TaskProfile(
+            task_id="dynamic_route_weights",
+            task_type=TaskType.FAST_QUERY,
+            goal=OptimizationGoal.BALANCED,
+        )
+
+        scores = [self.scorer.score_model(c, task_profile) for c in candidates]
+        total_score = sum(max(0.01, s.composite_score) for s in scores)
+        weights: Dict[str, float] = {}
+        for s in scores:
+            weights[s.candidate_id] = round(max(0.01, s.composite_score) / total_score, 4)
+        return weights
+
+    def export_gateway_route_weights(
+        self,
+        alias: str,
+        candidates: List[ModelCandidate],
+        task: Optional[TaskProfile] = None,
+        gateway_url: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Exports computed route weights formatted for the model-gateway router.
+        Optionally synchronizes with a live model-gateway instance if gateway_url is provided.
+        """
+        weights = self.compute_route_weights(candidates, task)
+        payload = {
+            "alias": alias,
+            "weights": weights,
+            "updated_at": utc_now().isoformat(),
+        }
+        if gateway_url:
+            try:
+                import json
+                import urllib.request
+                req = urllib.request.Request(
+                    f"{gateway_url.rstrip('/')}/v1/routes/{alias}/weights",
+                    data=json.dumps({"weights": weights}).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=3.0) as resp:
+                    payload["synced"] = resp.status == 200
+            except Exception as e:
+                payload["sync_error"] = str(e)
+                payload["synced"] = False
+        return payload

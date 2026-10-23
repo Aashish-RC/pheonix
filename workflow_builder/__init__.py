@@ -18,6 +18,16 @@ from .engine.workflow_engine import WorkflowEngine
 from .compiler.describe_to_workflow import DescribeToWorkflowCompiler
 from .runtime.orchestrator_bridge import OrchestratorBridge
 
+
+def to_plan_dag(
+    workflow: WorkflowGraph,
+    project_id: str = "default",
+    budget_limit: float = 1.0,
+):
+    """Compiles a visual WorkflowGraph into an executable orchestrator PlanDAG."""
+    return workflow.to_plan_dag(project_id=project_id, budget_limit=budget_limit)
+
+
 __all__ = [
     "DescribeWorkflowRequest",
     "WorkflowBuildResult",
@@ -32,4 +42,5 @@ __all__ = [
     "WorkflowEngine",
     "DescribeToWorkflowCompiler",
     "OrchestratorBridge",
+    "to_plan_dag",
 ]

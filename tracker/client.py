@@ -34,6 +34,18 @@ class TrackerClient:
         """Lists all upcoming provider subscription renewals ordered by urgency."""
         return RenewalEngine.list_renewals(self.plans.list_plans(), reference_date=reference_date)
 
+    def deduct_usage(
+        self,
+        provider: str,
+        tokens: int = 0,
+        cost_usd: float = 0.0,
+        key_id: Optional[str] = None,
+    ) -> Optional[KeyQuotaStatus]:
+        """Deducts quota by adding real token usage/cost reported by observability."""
+        return self.key_monitor.deduct_usage(
+            provider=provider, tokens=tokens, cost_usd=cost_usd, key_id=key_id
+        )
+
     def aggregate_licenses(self):
         """Aggregates multi-account key licenses, quotas, and spends per provider."""
         return self.key_monitor.aggregate_licenses()

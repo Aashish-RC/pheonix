@@ -12,12 +12,26 @@ import uuid
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+class TokenUsageEvent(BaseModel):
+    """Event emitted whenever token usage is recorded in a telemetry span."""
+    trace_id: str
+    span_id: str
+    module: str
+    provider: str
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+    cost_usd: float = 0.0
+    timestamp: str = Field(default_factory=utc_now_iso)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
 class TelemetrySpan(BaseModel):
@@ -56,6 +70,9 @@ class TelemetryCollector:
 
         # Exporter hooks (e.g. Langfuse / OpenLLMetry)
         self._exporters: List[Any] = []
+        # Token usage listeners (e.g. Tracker quota deduction)
+        self._token_usage_listeners: List[Callable[[TokenUsageEvent], None]] = []
+        self._tracker_client: Optional[Any] = None
 
     @classmethod
     def get_instance(cls) -> "TelemetryCollector":
@@ -72,6 +89,11 @@ class TelemetryCollector:
     def register_exporter(self, exporter: Any) -> None:
         with self._lock:
             self._exporters.append(exporter)
+
+    def add_token_usage_listener(self, listener: Callable[[TokenUsageEvent], None]) -> None:
+        """Register a callback invoked whenever token usage is reported in a span."""
+        with self._lock:
+            self._token_usage_listeners.append(listener)
 
     def record_span(self, span: TelemetrySpan) -> TelemetrySpan:
         """Records a completed span in-memory, writes to local JSONL, and dispatches to exporters."""
@@ -90,6 +112,44 @@ class TelemetryCollector:
             try:
                 if hasattr(exp, "export_span"):
                     exp.export_span(span)
+            except Exception:
+                pass
+
+        # Emit TokenUsageEvent to tracker listeners if tokens or cost were consumed
+        total_tokens = span.token_usage.get("total_tokens", 0)
+        cost_usd = span.cost_usd
+        if total_tokens > 0 or cost_usd > 0:
+            provider = span.metadata.get("provider") or span.module
+            event = TokenUsageEvent(
+                trace_id=span.trace_id,
+                span_id=span.span_id,
+                module=span.module,
+                provider=provider,
+                prompt_tokens=span.token_usage.get("prompt_tokens", 0),
+                completion_tokens=span.token_usage.get("completion_tokens", 0),
+                total_tokens=total_tokens,
+                cost_usd=cost_usd,
+                metadata=span.metadata,
+            )
+            for listener in list(self._token_usage_listeners):
+                try:
+                    listener(event)
+                except Exception:
+                    pass
+
+            # Auto-deduct from tracker if tracker module is available
+            try:
+                from tracker.client import TrackerClient
+                tc = getattr(self, "_tracker_client", None)
+                if tc is None:
+                    tc = TrackerClient()
+                    self._tracker_client = tc
+                tc.deduct_usage(
+                    provider=provider,
+                    tokens=total_tokens,
+                    cost_usd=cost_usd,
+                    key_id=span.metadata.get("key_id"),
+                )
             except Exception:
                 pass
 
