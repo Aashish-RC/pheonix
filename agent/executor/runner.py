@@ -28,6 +28,7 @@ class AgentRunner:
         memory_manager: Optional[MemoryManager] = None,
         guardrail_filter: Optional[GuardrailFilter] = None,
         event_bus: Optional[EventBus] = None,
+        sandbox_manager: Optional[Any] = None,
     ):
         self.manifest = manifest
         self.tools = tool_registry or default_tool_registry
@@ -36,11 +37,22 @@ class AgentRunner:
         self.event_bus = event_bus or default_event_bus
         self.subagents = SubagentManager(event_bus=self.event_bus)
 
-        # Configure Sandbox
-        if self.manifest.sandbox.provider == "e2b":
-            self.sandbox = E2BSandboxAdapter()
+        # Configure Sandbox: delegate directly to canonical sandboxes.manager.SandboxManager
+        if sandbox_manager is not None:
+            self.sandbox = sandbox_manager
+        elif self.manifest.sandbox.provider == "e2b":
+            try:
+                from sandboxes.manager import SandboxManager
+                from sandboxes.core.engines import E2BExecutionEngine
+                self.sandbox = SandboxManager(engine=E2BExecutionEngine())
+            except ImportError:
+                self.sandbox = E2BSandboxAdapter()
         else:
-            self.sandbox = LocalDockerSandboxAdapter()
+            try:
+                from sandboxes.manager import SandboxManager
+                self.sandbox = SandboxManager()
+            except ImportError:
+                self.sandbox = LocalDockerSandboxAdapter()
 
         # Ensure tools declared in manifest are registered
         self._register_manifest_tools()

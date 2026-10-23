@@ -119,7 +119,38 @@ class ToolRegistry:
             async def run_sandbox_cmd(params: Dict[str, Any], ctx: ToolContext):
                 cmd = tool_def.command or params.get("command", "")
                 if sandbox_runner:
-                    return await sandbox_runner.run_command(cmd)
+                    if hasattr(sandbox_runner, "run_command"):
+                        res = sandbox_runner.run_command(cmd, project_id=ctx.namespace)
+                        if asyncio.iscoroutine(res):
+                            res = await res
+                        if isinstance(res, ToolResult):
+                            return res
+                        if hasattr(res, "status") and hasattr(res, "stdout"):
+                            is_ok = (getattr(res.status, "value", str(res.status)) == "success") or res.exit_code == 0
+                            return ToolResult(
+                                success=is_ok,
+                                output=res.stdout if res.exit_code == 0 else (res.stderr or res.stdout),
+                                error=res.stderr if not is_ok else None,
+                                execution_time_ms=getattr(res, "duration_ms", 0.0),
+                                metadata={"status": getattr(res.status, "value", str(res.status)), "exit_code": res.exit_code}
+                            )
+                        elif isinstance(res, dict):
+                            return ToolResult(
+                                success=res.get("exit_code", 0) == 0,
+                                output=res.get("stdout", ""),
+                                error=res.get("stderr") if res.get("exit_code", 0) != 0 else None,
+                                execution_time_ms=res.get("execution_time_ms", 0.0),
+                                metadata=res
+                            )
+                    elif hasattr(sandbox_runner, "execute_command"):
+                        res = await sandbox_runner.execute_command(cmd, project_id=ctx.namespace)
+                        return ToolResult(
+                            success=res.get("exit_code", 0) == 0,
+                            output=res.get("stdout", ""),
+                            error=res.get("stderr") if res.get("exit_code", 0) != 0 else None,
+                            execution_time_ms=res.get("execution_time_ms", 0.0),
+                            metadata=res
+                        )
                 return ToolResult(
                     success=True,
                     output=f"Simulated command execution: '{cmd}'",

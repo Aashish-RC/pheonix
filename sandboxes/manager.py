@@ -129,3 +129,55 @@ class SandboxManager(BaseSandboxManager):
             raise_on_timeout=raise_on_timeout,
             permission_service=permission_service,
         )
+
+    async def run_command(
+        self,
+        command: str,
+        project_id: str = "default",
+        timeout_seconds: Optional[float] = None,
+    ) -> SandboxResult:
+        """Asynchronously executes a shell command within the canonical sandbox with security governance & permissions."""
+        import asyncio
+        limits = ResourceLimits()
+        if timeout_seconds is not None:
+            limits.timeout_seconds = timeout_seconds
+        req = ExecutionRequest(
+            project_id=project_id,
+            language="shell",
+            code=command,
+            limits=limits,
+        )
+        try:
+            loop = asyncio.get_running_loop()
+            return await loop.run_in_executor(None, lambda: self.run(req))
+        except RuntimeError:
+            return self.run(req)
+
+    async def execute_command(
+        self,
+        command: str,
+        config: Optional[Any] = None,
+        cwd: Optional[str] = None,
+        project_id: str = "default",
+    ) -> Dict[str, Any]:
+        """Asynchronous execution interface compatible with agent sandbox adapters."""
+        timeout = getattr(config, "timeout_seconds", 30.0) if config else 30.0
+        res = await self.run_command(command, project_id=project_id, timeout_seconds=timeout)
+        if res.status == SandboxStatus.BLOCKED:
+            from agent.core.exceptions import SandboxExecutionError
+            raise SandboxExecutionError(
+                f"Command blocked by sandbox security policy: '{command}' ({res.stderr})",
+                details={"blocked_command": command, "stderr": res.stderr}
+            )
+        if res.status == SandboxStatus.TIMEOUT:
+            from agent.core.exceptions import SandboxExecutionError
+            raise SandboxExecutionError(f"Command timed out after {timeout} seconds: '{command}'")
+        return {
+            "exit_code": res.exit_code,
+            "stdout": res.stdout,
+            "stderr": res.stderr,
+            "execution_time_ms": res.duration_ms,
+            "provider": getattr(self.runner, "__class__", type(self.runner)).__name__,
+            "status": res.status.value,
+        }
+

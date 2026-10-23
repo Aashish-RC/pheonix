@@ -16,11 +16,13 @@ class MemoryManager:
         working: Optional[WorkingMemoryTier] = None,
         facts: Optional[FactStoreTier] = None,
         vector: Optional[VectorMemoryTier] = None,
+        canonical_engine: Optional[Any] = None,
     ):
         self.working = working or WorkingMemoryTier()
         self.facts = facts or FactStoreTier()
         self.vector = vector or VectorMemoryTier()
         self.cognition = MemoryCognition()
+        self.canonical_engine = canonical_engine
 
     async def remember(
         self,
@@ -62,10 +64,41 @@ class MemoryManager:
                 metadata={"session_id": session_id, "role": role},
             )
 
+        # 4. Delegation: persist to canonical memory.engine.MemoryEngine
+        canonical_res = None
+        engine = self.canonical_engine
+        if engine is None:
+            try:
+                from memory.engine import MemoryEngine
+                engine = MemoryEngine()
+                self.canonical_engine = engine
+            except Exception:
+                engine = None
+
+        if engine is not None:
+            try:
+                from memory.core.models import TurnRole
+                try:
+                    turn_role = TurnRole(role.lower())
+                except (ValueError, AttributeError):
+                    turn_role = TurnRole.USER
+
+                canonical_res = engine.remember(
+                    user_id=namespace,
+                    text=content,
+                    session_id=session_id,
+                    role=turn_role,
+                    project_id=namespace,
+                    metadata=metadata,
+                )
+            except Exception:
+                pass
+
         return {
             "turn": turn,
             "extracted_facts": len(saved_fact_ids),
             "vector_indexed": vector_doc_id is not None,
+            "canonical_synced": canonical_res is not None,
         }
 
     async def recall(

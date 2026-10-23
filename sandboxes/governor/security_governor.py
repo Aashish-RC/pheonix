@@ -43,6 +43,18 @@ class SecurityGovernor(BaseSecurityGovernor):
             if pat.search(code):
                 return False, f"Code violates security policy: matched blocked pattern '{pat.pattern}'"
 
+        # Check dangerous command patterns
+        for bad in [
+            "rm -rf /",
+            "rm -rf --no-preserve-root",
+            ":(){ :|:& };:",
+            "mkfs",
+            "dd if=/dev/zero",
+            "chmod -R 777 /",
+        ]:
+            if bad in code:
+                return False, f"Command blocked by sandbox security policy: '{bad}'"
+
         # Check network access if disabled
         if not request.limits.network_access:
             for pat in BLOCKED_NETWORK_PATTERNS:
