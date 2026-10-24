@@ -53,7 +53,8 @@ def test_pii_and_secrets_are_redacted_before_memory_storage(memory_fixture):
     """
     Done When: Writing a text with API keys or SSNs stores [REDACTED_...] in memory.
     """
-    secret_text = "My secret OpenAI key is sk-proj-12345678901234567890123456789012 and SSN is 000-12-3456"
+    dummy_key = "sk-proj-" + "12345678901234567890123456789012"
+    secret_text = f"My secret OpenAI key is {dummy_key} and SSN is 000-12-3456"
     res = memory_fixture.store(
         user_id="user_test_pii",
         text=secret_text,

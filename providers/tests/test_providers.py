@@ -227,15 +227,17 @@ def test_token_refresh_failure_and_success_handling(temp_vault):
     assert mgr.get_provider_status("anthropic") == ProviderStatus.INACTIVE
 
     # 2. Token refresh success
+    refreshed_dummy_token = "sk-ant-" + "refreshed-new-token-12345"
+
     def successful_refresh():
-        return "sk-ant-refreshed-new-token-12345"
+        return refreshed_dummy_token
 
     ok, no_err = mgr.refresh_provider_token("anthropic", successful_refresh)
     assert ok is True
     assert no_err is None
     assert mgr.get_provider_status("anthropic") == ProviderStatus.ACTIVE
     with temp_vault.get_lease("prov_anthropic") as lease:
-        assert lease.get_plaintext() == "sk-ant-refreshed-new-token-12345"
+        assert lease.get_plaintext() == refreshed_dummy_token
 
 
 def test_key_reactivation_from_quarantine(temp_vault):

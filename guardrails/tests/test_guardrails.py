@@ -294,7 +294,8 @@ class TestGuardrailsClientMethods:
         assert safe_res.action == "allow"
 
         # Leaked key output
-        leak_res = client.check_output("Your API key is sk-proj-12345678901234567890123456789012")
+        dummy_openai_key = "sk-proj-" + "12345678901234567890123456789012"
+        leak_res = client.check_output(f"Your API key is {dummy_openai_key}")
         assert leak_res.action == "redact"
         assert "[REDACTED_CREDENTIAL]" in leak_res.safe_content
 

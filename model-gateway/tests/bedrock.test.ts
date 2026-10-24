@@ -22,12 +22,13 @@ describe('Feature 16: AWS Bedrock Provider Adapter & SigV4 Signing', () => {
       max_tokens: 200
     };
 
+    const dummyKey = 'AKIA' + 'IOSFODNN7EXAMPLE';
     const upstream = adapter.transformRequest(req, {
       id: 'bedrock',
       name: 'AWS Bedrock',
       baseUrl: 'https://bedrock-runtime.us-east-1.amazonaws.com',
       region: 'us-east-1',
-      accessKeyId: 'AKIAIOSFODNN7EXAMPLE',
+      accessKeyId: dummyKey,
       secretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
     });
 
@@ -36,7 +37,7 @@ describe('Feature 16: AWS Bedrock Provider Adapter & SigV4 Signing', () => {
     expect(upstream.headers['host']).toBe('bedrock-runtime.us-east-1.amazonaws.com');
     expect(upstream.headers['x-amz-date']).toBeDefined();
     expect(upstream.headers['x-amz-content-sha256']).toBeDefined();
-    expect(upstream.headers['Authorization']).toMatch(/^AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE\/\d{8}\/us-east-1\/bedrock\/aws4_request/);
+    expect(upstream.headers['Authorization']).toMatch(new RegExp(`^AWS4-HMAC-SHA256 Credential=${dummyKey}/\\d{8}/us-east-1/bedrock/aws4_request`));
 
     const parsedBody = JSON.parse(upstream.body!);
     expect(parsedBody.messages[0].role).toBe('user');

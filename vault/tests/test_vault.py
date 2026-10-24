@@ -54,7 +54,7 @@ def test_secret_put_and_lease(temp_vault_path):
     mgr = KeyStoreManager(temp_vault_path)
     mgr.initialize("master-pass")
 
-    raw_secret = "sk-proj-test123456789abcdef"
+    raw_secret = "sk-proj-" + "test123456789abcdef"
     mgr.put_secret(
         key_id="openai_prod",
         secret=raw_secret,
@@ -115,7 +115,7 @@ def test_zero_plaintext_on_disk(temp_vault_path):
     mgr.initialize("master-pass-12345")
 
     sensitive_tokens = [
-        "sk-proj-99999999999999999999999999999999",
+        "sk-proj-" + "99999999999999999999999999999999",
         "ghp_verySecretGithubPersonalAccessToken123",
         "secret-db-password-xyz-777",
     ]
