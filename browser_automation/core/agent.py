@@ -16,6 +16,7 @@ from ..core.models import (
 )
 from ..engine.confirmation_rules import ConfirmationRulesGate
 from ..runtime.session_runner import BrowserSessionRunner
+from .multi_tab import TabInfo, TabManager
 from .takeover import CaptchaDetector, TakeoverManager, TakeoverRequest, TakeoverTrigger
 
 INTERCEPTOR_BUTTON_REGEX = re.compile(
@@ -184,6 +185,7 @@ class BrowserUseAgent(BrowserAgent):
         use_playwright: bool = False,
         headless: bool = True,
         takeover_manager: Optional[TakeoverManager] = None,
+        tab_manager: Optional[TabManager] = None,
     ):
         super().__init__(
             session_runner=session_runner,
@@ -195,6 +197,7 @@ class BrowserUseAgent(BrowserAgent):
             use_playwright=self.use_playwright,
         )
         self.takeover_manager = takeover_manager or TakeoverManager()
+        self.tab_manager = tab_manager or TabManager()
 
     def open_page(self, url: str) -> BrowserObservation:
         """Opens target URL in browser and returns initial observation."""
@@ -212,10 +215,27 @@ class BrowserUseAgent(BrowserAgent):
             # Synchronize session runner metadata
             self.runner.current_url = obs.current_url
             self.runner.page_title = obs.page_title
+            active_tab = self.tab_manager.get_active_tab()
+            self.tab_manager.update_tab(active_tab.tab_id, url=obs.current_url, title=obs.page_title)
             return obs
 
         action = BrowserAction(action_type=BrowserActionType.NAVIGATE, url=url)
-        return self.runner.execute_action(action)
+        obs = self.runner.execute_action(action)
+        active_tab = self.tab_manager.get_active_tab()
+        self.tab_manager.update_tab(active_tab.tab_id, url=obs.current_url, title=obs.page_title)
+        return obs
+
+    def open_tab(self, url: str = "about:blank", title: str = "New Tab") -> BrowserObservation:
+        """Opens a new browser tab in the active session and navigates to target URL."""
+        self.tab_manager.open_tab(url=url, title=title, set_active=True)
+        return self.open_page(url)
+
+    def switch_tab(self, tab_id: str) -> BrowserObservation:
+        """Switches focus to an existing tab by its ID."""
+        tab = self.tab_manager.switch_tab(tab_id)
+        self.runner.current_url = tab.url
+        self.runner.page_title = tab.title
+        return self.runner.get_current_observation()
 
     def extract_text(self) -> str:
         """Extracts text content from the current page."""
@@ -261,6 +281,7 @@ class BrowserUseAgent(BrowserAgent):
         # Check for CAPTCHA / bot challenge
         challenge = CaptchaDetector.detect(obs.dom_snippet)
         if challenge and not auto_approve:
+            active_tab = self.tab_manager.get_active_tab()
             req = self.takeover_manager.request_takeover(
                 session_id=self.runner.profile.session_id,
                 trigger=TakeoverTrigger.CAPTCHA_DETECTED,
@@ -268,6 +289,8 @@ class BrowserUseAgent(BrowserAgent):
                 url=current_url,
                 challenge_type=challenge,
                 dom_context=obs.dom_snippet[:400],
+                active_tab_id=active_tab.tab_id,
+                tabs=self.tab_manager.list_tabs(),
             )
             return BrowserTaskReport(
                 task_id=action.action_id,
@@ -364,4 +387,6 @@ __all__ = [
     "TakeoverManager",
     "TakeoverRequest",
     "TakeoverTrigger",
+    "TabInfo",
+    "TabManager",
 ]

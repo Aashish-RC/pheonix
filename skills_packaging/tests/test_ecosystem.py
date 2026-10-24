@@ -117,3 +117,141 @@ def test_license_expiration():
         expires_at=past,
     )
     assert service.verify_license(expired_lic) is False
+
+
+def test_catalog_request_review_workflow(tmp_path):
+    from skills_packaging.marketplace.catalog_requests import CatalogRequestManager, RequestStatus
+
+    catalog = MarketplaceCatalog()
+    manager = CatalogRequestManager(catalog=catalog)
+
+    # 1. Clean valid bundle submission
+    clean_item = MarketplaceItem(
+        item_id="pkg_clean",
+        name="Clean Skill",
+        package_type=PackageType.SKILL,
+        category=MarketplaceCategory.UTILITIES,
+        version="1.0.0",
+        description="Safe utilities",
+    )
+    clean_bundle = PackageBundle.create(
+        package_type=PackageType.SKILL,
+        package_id="pkg_clean",
+        version="1.0.0",
+        manifest_data={"name": "Clean Skill"},
+        files={"main.py": "def run(): return 'safe'"},
+    )
+
+    sub = manager.submit_extension(
+        tenant_id="tenant_alpha",
+        author_id="dev_bob",
+        item=clean_item,
+        bundle=clean_bundle,
+    )
+    assert sub.status == RequestStatus.IN_REVIEW
+    assert sub.security_scan_passed is True
+
+    # Review & approve
+    approved = manager.review_submission(
+        submission_id=sub.submission_id,
+        approved=True,
+        reviewer_id="admin_alice",
+        notes="Code reviewed and verified safe.",
+    )
+    assert approved.status == RequestStatus.PUBLISHED
+    assert catalog.get_item("pkg_clean") is not None
+
+    # 2. Dangerous bundle submission (with eval)
+    bad_item = MarketplaceItem(
+        item_id="pkg_bad",
+        name="Bad Skill",
+        package_type=PackageType.SKILL,
+        category=MarketplaceCategory.UTILITIES,
+        version="1.0.0",
+        description="Suspicious code",
+    )
+    bad_bundle = PackageBundle.create(
+        package_type=PackageType.SKILL,
+        package_id="pkg_bad",
+        version="1.0.0",
+        manifest_data={"name": "Bad Skill"},
+        files={"bad.py": "result = eval(user_input)"},
+    )
+
+    bad_sub = manager.submit_extension(
+        tenant_id="tenant_alpha",
+        author_id="dev_mal",
+        item=bad_item,
+        bundle=bad_bundle,
+    )
+    assert bad_sub.status == RequestStatus.REJECTED
+    assert bad_sub.security_scan_passed is False
+    assert any("eval()" in msg for msg in bad_sub.security_scan_report)
+
+
+def test_update_manager_staging_preview(tmp_path):
+    from skills_packaging.marketplace.update_manager import UpdateManager
+    from skills_packaging.packaging.installer import Installer
+
+    catalog = MarketplaceCatalog()
+    installer = Installer()
+    update_mgr = UpdateManager(catalog=catalog)
+
+    # Initial v1.0.0 bundle
+    v1_bundle = PackageBundle.create(
+        package_type=PackageType.PLUGIN,
+        package_id="pkg_calculator",
+        version="1.0.0",
+        manifest_data={"name": "Calculator", "version": "1.0.0"},
+        files={"calc.py": "def add(a, b): return a + b\n", "old.py": "# Deprecated\n"},
+    )
+    installer.install_package(v1_bundle, str(tmp_path / "installed"))
+
+    # Publish v2.0.0 bundle to catalog
+    v2_item = MarketplaceItem(
+        item_id="pkg_calculator",
+        name="Calculator",
+        package_type=PackageType.PLUGIN,
+        category=MarketplaceCategory.UTILITIES,
+        version="2.0.0",
+        description="Major upgrade with multiply",
+    )
+    v2_bundle = PackageBundle.create(
+        package_type=PackageType.PLUGIN,
+        package_id="pkg_calculator",
+        version="2.0.0",
+        manifest_data={"name": "Calculator", "version": "2.0.0"},
+        files={
+            "calc.py": "def add(a, b): return a + b\ndef multiply(a, b): return a * b\n",
+            "new_feature.py": "# New module\n",
+        },
+    )
+    catalog.publish_item(v2_item, v2_bundle)
+
+    # Check available updates
+    updates = update_mgr.check_updates(installer)
+    assert len(updates) == 1
+    assert updates[0]["package_id"] == "pkg_calculator"
+    assert updates[0]["latest_version"] == "2.0.0"
+
+    # Generate non-destructive dry-run staging preview
+    preview = update_mgr.create_staging_preview("pkg_calculator", installer)
+    assert preview.package_id == "pkg_calculator"
+    assert preview.current_version == "1.0.0"
+    assert preview.target_version == "2.0.0"
+    assert "new_feature.py" in preview.files_added
+    assert "calc.py" in preview.files_modified
+    assert "old.py" in preview.files_removed
+    assert preview.breaking_change_warning is True  # Major version bump 1.0 -> 2.0
+
+    # Apply staged update with rollback backup
+    backup_dir = str(tmp_path / "backups")
+    new_rec = update_mgr.apply_staged_update("pkg_calculator", installer, backup_dir=backup_dir)
+    assert new_rec.version == "2.0.0"
+
+    # Rollback update
+    rolled_back = update_mgr.rollback_update("pkg_calculator", installer)
+    assert rolled_back is True
+    # Confirm old file restored
+    assert (tmp_path / "installed" / "pkg_calculator" / "old.py").exists()
+

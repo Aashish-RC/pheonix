@@ -14,6 +14,9 @@ from ..core.models import (
 )
 
 
+from .layout_engine import LayoutEngine, LayoutTree
+
+
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -28,6 +31,8 @@ class ComposedApp(BaseModel):
     sub_agents: List[AgentSpecification] = Field(default_factory=list)
     plugin_ids: List[str] = Field(default_factory=list)
     active_skills: List[str] = Field(default_factory=list)
+    layout: Optional[LayoutTree] = None
+    html_skeleton: Optional[str] = None
     version: str = "1.0.0"
     created_at: datetime = Field(default_factory=utc_now)
 
@@ -35,8 +40,13 @@ class ComposedApp(BaseModel):
 class AppComposer:
     """Assembles prompt-driven applications with agent configurations, tool bindings, and plugins."""
 
-    def __init__(self, compiler: Optional[DescribeToAgentCompiler] = None):
+    def __init__(
+        self,
+        compiler: Optional[DescribeToAgentCompiler] = None,
+        layout_engine: Optional[LayoutEngine] = None,
+    ):
         self.compiler = compiler or DescribeToAgentCompiler()
+        self.layout_engine = layout_engine or LayoutEngine()
 
     def compose_app(
         self,
@@ -58,15 +68,28 @@ class AppComposer:
 
         spec = build_res.specification
         app_name = name or f"{spec.name} Application"
+        domain = target_domain or "general"
+        app_id = f"app_{uuid.uuid4().hex[:8]}"
+
+        layout = self.layout_engine.synthesize_layout(
+            app_id=app_id,
+            title=app_name,
+            domain=domain,
+            plugins=plugin_ids,
+        )
+        html_skeleton = self.layout_engine.render_html_skeleton(layout)
 
         return ComposedApp(
+            app_id=app_id,
             name=app_name,
             description=f"Auto-composed app for: {prompt[:80]}...",
-            target_domain=target_domain or "general",
+            target_domain=domain,
             system_prompt=spec.system_prompt,
             primary_agent=spec,
             plugin_ids=plugin_ids or [],
             active_skills=active_skills or [],
+            layout=layout,
+            html_skeleton=html_skeleton,
         )
 
     def execute_app(self, app: ComposedApp, input_query: str) -> Dict[str, Any]:

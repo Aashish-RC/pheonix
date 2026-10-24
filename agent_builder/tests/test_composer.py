@@ -20,8 +20,15 @@ def test_app_composer_creation():
     assert "sqlite_tools" in app.plugin_ids
     assert app.primary_agent is not None
 
+    # Verify synthesized layout engine integration
+    assert app.layout is not None
+    assert app.html_skeleton is not None
+    assert "composed-app-layout" in app.html_skeleton
+    assert composer.layout_engine.validate_layout(app.layout) is True
+
     # Execute app
     exec_res = composer.execute_app(app, "Show top 5 sales agents")
     assert exec_res["status"] == "success"
     assert exec_res["app_name"] == "Sales SQL Analyst"
     assert "sqlite_tools" in exec_res["plugins_used"]
+

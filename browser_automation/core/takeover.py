@@ -43,7 +43,8 @@ class TakeoverRequest(BaseModel):
     url: str
     challenge_type: Optional[str] = None
     dom_context: Optional[str] = None
-    screenshot_id: Optional[str] = None
+    active_tab_id: Optional[str] = None
+    tabs: List[Any] = Field(default_factory=list)
     status: TakeoverStatus = TakeoverStatus.REQUESTED
     requested_at: datetime = Field(default_factory=utc_now)
     resolved_at: Optional[datetime] = None
@@ -114,6 +115,8 @@ class TakeoverManager:
         challenge_type: Optional[str] = None,
         dom_context: Optional[str] = None,
         screenshot_id: Optional[str] = None,
+        active_tab_id: Optional[str] = None,
+        tabs: Optional[List[Any]] = None,
     ) -> TakeoverRequest:
         """Issues a new takeover request and notifies subscribers."""
         with self._lock:
@@ -124,12 +127,28 @@ class TakeoverManager:
                 url=url,
                 challenge_type=challenge_type,
                 dom_context=dom_context,
-                screenshot_id=screenshot_id,
+                active_tab_id=active_tab_id,
+                tabs=tabs or [],
                 status=TakeoverStatus.REQUESTED,
             )
             self._requests[req.request_id] = req
             self._active_session_takeovers[session_id] = req.request_id
 
+        self._notify_listeners(req)
+        return req
+
+    def switch_takeover_tab(self, request_id: str, tab_id: str) -> TakeoverRequest:
+        """Switches the active focused tab during human takeover."""
+        with self._lock:
+            req = self._requests.get(request_id)
+            if not req:
+                raise ValueError(f"Takeover request '{request_id}' not found.")
+            req.active_tab_id = tab_id
+            for t in req.tabs:
+                if isinstance(t, dict):
+                    t["is_active"] = (t.get("tab_id") == tab_id)
+                elif hasattr(t, "is_active"):
+                    t.is_active = (getattr(t, "tab_id", "") == tab_id)
         self._notify_listeners(req)
         return req
 
