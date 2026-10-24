@@ -35,9 +35,10 @@ class KeyMonitor:
         is_active: bool = True,
         current_spend: float = 0.0,
         monthly_quota_usd: Optional[float] = None,
-        expires_at: Optional[str] = None
+        expires_at: Optional[str] = None,
+        tenant_id: str = "default",
     ) -> KeyQuotaStatus:
-        plan = self.plans.get_plan(provider)
+        plan = self.plans.get_plan(provider, tenant_id=tenant_id)
         quota = monthly_quota_usd if monthly_quota_usd is not None else (plan.monthly_quota_usd if plan else 100.0)
         used_percent = round((current_spend / quota) * 100.0, 1) if quota > 0 else 0.0
 
@@ -61,6 +62,7 @@ class KeyMonitor:
 
         status = KeyQuotaStatus(
             key_id=key_id,
+            tenant_id=tenant_id,
             provider=provider,
             is_active=is_active,
             current_spend_usd=current_spend,
@@ -79,6 +81,7 @@ class KeyMonitor:
         tokens: int = 0,
         cost_usd: float = 0.0,
         key_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
     ) -> Optional[KeyQuotaStatus]:
         """Deducts quota by adding real token usage/cost from observability and updating alerts."""
         prov = provider.lower()
@@ -89,8 +92,9 @@ class KeyMonitor:
         else:
             for r in self._key_records.values():
                 if r.provider.lower() == prov and r.is_active:
-                    target_record = r
-                    break
+                    if tenant_id is None or r.tenant_id == tenant_id:
+                        target_record = r
+                        break
 
         if not target_record:
             return None
@@ -144,12 +148,16 @@ class KeyMonitor:
 
         return purged
 
-    def aggregate_licenses(self) -> Dict[str, Dict[str, Any]]:
+    def aggregate_licenses(self, tenant_id: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
         """
         Aggregates multi-account licenses, spend, and quotas grouped by provider.
         """
         aggregated: Dict[str, Dict[str, Any]] = {}
-        for record in self._key_records.values():
+        records = [
+            r for r in self._key_records.values()
+            if tenant_id is None or r.tenant_id == tenant_id
+        ]
+        for record in records:
             prov = record.provider.lower()
             if prov not in aggregated:
                 aggregated[prov] = {
@@ -188,8 +196,15 @@ class KeyMonitor:
     def get_key_status(self, key_id: str) -> Optional[KeyQuotaStatus]:
         return self._key_records.get(key_id)
 
-    def list_keys(self, provider: Optional[str] = None, only_active: bool = False) -> List[KeyQuotaStatus]:
+    def list_keys(
+        self,
+        provider: Optional[str] = None,
+        only_active: bool = False,
+        tenant_id: Optional[str] = None,
+    ) -> List[KeyQuotaStatus]:
         keys = list(self._key_records.values())
+        if tenant_id:
+            keys = [k for k in keys if k.tenant_id == tenant_id]
         if provider:
             keys = [k for k in keys if k.provider.lower() == provider.lower()]
         if only_active:

@@ -26,6 +26,7 @@ class AuthType(str, Enum):
 class ProviderDescriptor(BaseModel):
     provider_id: str
     name: str
+    tenant_id: str = "default"
     auth_type: AuthType = AuthType.API_KEY
     probe_url: str
     header_name: str = "Authorization"
@@ -46,6 +47,7 @@ class ActivatedProvider(BaseModel):
     provider_id: str
     name: str
     key_id: str
+    tenant_id: str = "default"
     status: ProviderStatus = ProviderStatus.UNTESTED
     auth_type: AuthType = AuthType.API_KEY
     last_ping_at: Optional[float] = None

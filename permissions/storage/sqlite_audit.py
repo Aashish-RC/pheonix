@@ -37,6 +37,7 @@ class SQLiteAuditStore(BaseAuditStore):
         return conn
 
     def _init_db(self) -> None:
+        from storage.migrations import SchemaMigrator, Migration, add_column_if_missing
         with self._lock:
             conn = self._get_connection()
             conn.execute("""
@@ -54,18 +55,29 @@ class SQLiteAuditStore(BaseAuditStore):
                     timestamp TEXT NOT NULL
                 );
             """)
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_audit_tenant
-                ON permission_audit(tenant_id);
-            """)
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_audit_project
-                ON permission_audit(project_id);
-            """)
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_audit_timestamp
-                ON permission_audit(timestamp DESC);
-            """)
+
+            def _migrate_v1(c: sqlite3.Connection):
+                add_column_if_missing(c, "permission_audit", "tenant_id", "TEXT NOT NULL DEFAULT 'default'")
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_audit_tenant
+                    ON permission_audit(tenant_id);
+                """)
+
+            def _migrate_v2(c: sqlite3.Connection):
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_audit_project
+                    ON permission_audit(project_id);
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_audit_timestamp
+                    ON permission_audit(timestamp DESC);
+                """)
+
+            migrator = SchemaMigrator(conn)
+            migrator.apply_all([
+                Migration(version=1, name="permission_audit_tenant_id", up=_migrate_v1),
+                Migration(version=2, name="permission_audit_indexes", up=_migrate_v2),
+            ])
             conn.commit()
             if self._memory_conn is None:
                 conn.close()

@@ -22,17 +22,22 @@ class TrackerClient:
         self.plans = plan_registry or PlanRegistry()
         self.key_monitor = key_monitor or KeyMonitor(plan_registry=self.plans)
 
-    def list_active_keys(self) -> List[KeyQuotaStatus]:
+    def list_active_keys(self, tenant_id: Optional[str] = None) -> List[KeyQuotaStatus]:
         """Lists all active provider keys with quota consumption."""
-        return self.key_monitor.list_keys(only_active=True)
+        return self.key_monitor.list_keys(only_active=True, tenant_id=tenant_id)
 
-    def list_all_keys(self) -> List[KeyQuotaStatus]:
+    def list_all_keys(self, tenant_id: Optional[str] = None) -> List[KeyQuotaStatus]:
         """Lists all registered keys (both active and inactive/revoked)."""
-        return self.key_monitor.list_keys(only_active=False)
+        return self.key_monitor.list_keys(only_active=False, tenant_id=tenant_id)
 
-    def list_upcoming_renewals(self, reference_date: Optional[date] = None) -> List[ProviderRenewal]:
+    def list_upcoming_renewals(
+        self,
+        reference_date: Optional[date] = None,
+        tenant_id: Optional[str] = None,
+    ) -> List[ProviderRenewal]:
         """Lists all upcoming provider subscription renewals ordered by urgency."""
-        return RenewalEngine.list_renewals(self.plans.list_plans(), reference_date=reference_date)
+        plans = self.plans.list_plans(tenant_id=tenant_id)
+        return RenewalEngine.list_renewals(plans, reference_date=reference_date)
 
     def deduct_usage(
         self,
@@ -40,24 +45,29 @@ class TrackerClient:
         tokens: int = 0,
         cost_usd: float = 0.0,
         key_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
     ) -> Optional[KeyQuotaStatus]:
         """Deducts quota by adding real token usage/cost reported by observability."""
         return self.key_monitor.deduct_usage(
-            provider=provider, tokens=tokens, cost_usd=cost_usd, key_id=key_id
+            provider=provider, tokens=tokens, cost_usd=cost_usd, key_id=key_id, tenant_id=tenant_id
         )
 
-    def aggregate_licenses(self):
+    def aggregate_licenses(self, tenant_id: Optional[str] = None):
         """Aggregates multi-account key licenses, quotas, and spends per provider."""
-        return self.key_monitor.aggregate_licenses()
+        return self.key_monitor.aggregate_licenses(tenant_id=tenant_id)
 
     def purge_expired_keys(self, reference_date: Optional[date] = None) -> List[str]:
         """Purges expired or invalid keys from tracking."""
         return self.key_monitor.purge_expired_keys(reference_date=reference_date)
 
-    def render_dashboard(self, reference_date: Optional[date] = None) -> str:
+    def render_dashboard(
+        self,
+        reference_date: Optional[date] = None,
+        tenant_id: Optional[str] = None,
+    ) -> str:
         """Renders formatted ASCII dashboard showing active keys and upcoming renewals."""
-        keys = self.list_all_keys()
-        renewals = self.list_upcoming_renewals(reference_date=reference_date)
+        keys = self.list_all_keys(tenant_id=tenant_id)
+        renewals = self.list_upcoming_renewals(reference_date=reference_date, tenant_id=tenant_id)
 
         lines = [
             "============================================================",

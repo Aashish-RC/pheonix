@@ -76,6 +76,7 @@ class RecommenderService(BaseRecommenderService):
 
         return RecommendationDecision(
             task_id=task.task_id,
+            tenant_id=task.tenant_id,
             recommended_id=chosen_id,
             candidate_type="model",
             composite_score=top_score.composite_score,
@@ -129,6 +130,7 @@ class RecommenderService(BaseRecommenderService):
 
         return RecommendationDecision(
             task_id=task.task_id,
+            tenant_id=task.tenant_id,
             recommended_id=chosen_id,
             candidate_type="tool",
             composite_score=top_score.composite_score,

@@ -35,6 +35,7 @@ class OptimizationGoal(str, Enum):
 
 class TaskProfile(BaseModel):
     task_id: str
+    tenant_id: str = "default"
     task_type: TaskType = TaskType.FAST_QUERY
     risk_level: RiskLevel = RiskLevel.LOW
     goal: OptimizationGoal = OptimizationGoal.BALANCED
@@ -104,6 +105,7 @@ class CandidateScore(BaseModel):
 
 class RecommendationDecision(BaseModel):
     task_id: str
+    tenant_id: str = "default"
     recommended_id: str
     candidate_type: str  # "model" or "tool"
     composite_score: float
@@ -117,6 +119,7 @@ class RecommendationDecision(BaseModel):
 
 
 class BenchmarkResult(BaseModel):
+    tenant_id: str = "default"
     total_evaluations: int
     manual_total_cost_usd: float
     auto_total_cost_usd: float

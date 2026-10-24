@@ -31,7 +31,8 @@ class UsageCostLogger:
         actor: str = "anonymous",
         cached: bool = False,
         status_code: int = 200,
-        explicit_cost: Optional[float] = None
+        explicit_cost: Optional[float] = None,
+        tenant_id: str = "default",
     ) -> UsageRecord:
         """
         Records an inference event into the append-only ledger.
@@ -50,6 +51,7 @@ class UsageCostLogger:
         record = UsageRecord(
             record_id=f"rec-{uuid.uuid4().hex[:12]}",
             request_id=request_id,
+            tenant_id=tenant_id,
             timestamp=now_iso,
             actor=actor,
             model=model,

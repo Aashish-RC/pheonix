@@ -17,11 +17,21 @@ class PersonalUsageViewBuilder:
     def __init__(self, store: ObservabilityStore):
         self.store = store
 
-    def build_view(self, actor: Optional[str] = None, since_timestamp: Optional[str] = None) -> PersonalUsageView:
-        records: List[UsageRecord] = self.store.get_records(actor=actor, since_timestamp=since_timestamp)
+    def build_view(
+        self,
+        actor: Optional[str] = None,
+        since_timestamp: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+    ) -> PersonalUsageView:
+        records: List[UsageRecord] = self.store.get_records(
+            actor=actor, since_timestamp=since_timestamp, tenant_id=tenant_id
+        )
 
         if not records:
-            return PersonalUsageView(time_window="all-time" if not since_timestamp else f"since {since_timestamp}")
+            return PersonalUsageView(
+                tenant_id=tenant_id or "default",
+                time_window="all-time" if not since_timestamp else f"since {since_timestamp}"
+            )
 
         total_requests = len(records)
         total_tokens = sum(r.total_tokens for r in records)
@@ -73,6 +83,7 @@ class PersonalUsageViewBuilder:
         }
 
         return PersonalUsageView(
+            tenant_id=tenant_id or "default",
             time_window="all-time" if not since_timestamp else f"since {since_timestamp}",
             total_requests=total_requests,
             total_tokens=total_tokens,

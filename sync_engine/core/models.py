@@ -25,6 +25,7 @@ class MutationType(str, Enum):
 
 class SyncEntity(BaseModel):
     entity_id: str
+    tenant_id: str = "default"
     entity_type: EntityType
     data: Dict[str, Any]
     lamport_clock: int = 1
@@ -35,6 +36,7 @@ class SyncEntity(BaseModel):
 
 class DeltaMutation(BaseModel):
     mutation_id: str = Field(default_factory=lambda: f"mut_{uuid.uuid4().hex[:10]}")
+    tenant_id: str = "default"
     entity_id: str
     entity_type: EntityType
     mutation_type: MutationType
@@ -46,6 +48,7 @@ class DeltaMutation(BaseModel):
 
 class SyncPacket(BaseModel):
     packet_id: str = Field(default_factory=lambda: f"spkt_{uuid.uuid4().hex[:10]}")
+    tenant_id: str = "default"
     source_node_id: str
     target_node_id: str
     mutations: List[DeltaMutation] = Field(default_factory=list)

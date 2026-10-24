@@ -29,6 +29,7 @@ class NotificationPriority(str, Enum):
 
 class NotificationItem(BaseModel):
     notification_id: str = Field(default_factory=lambda: f"notif_{uuid.uuid4().hex[:8]}")
+    tenant_id: str = "default"
     user_id: Optional[str] = None
     title: str
     body: str
@@ -53,6 +54,7 @@ class QuietHoursPolicy(BaseModel):
 
 class NotificationRule(BaseModel):
     rule_id: str = Field(default_factory=lambda: f"rule_{uuid.uuid4().hex[:6]}")
+    tenant_id: str = "default"
     trigger_event: str  # e.g., "task_completed", "provider_degraded", "security_flag"
     min_priority: NotificationPriority = NotificationPriority.NORMAL
     target_channels: List[NotificationChannel] = Field(

@@ -43,11 +43,13 @@ class SQLiteCanvasStore(BaseCanvasStore):
         return conn
 
     def _init_db(self) -> None:
+        from storage.migrations import SchemaMigrator, Migration, add_column_if_missing
         with self._lock:
             conn = self._get_connection()
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS canvas_boards (
                     id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL DEFAULT 'default',
                     project_id TEXT NOT NULL DEFAULT 'default',
                     name TEXT NOT NULL,
                     viewport_x REAL NOT NULL DEFAULT 0.0,
@@ -58,44 +60,59 @@ class SQLiteCanvasStore(BaseCanvasStore):
                     updated_at TEXT NOT NULL
                 );
             """)
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_canvas_boards_project
-                ON canvas_boards(project_id);
-            """)
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS canvas_nodes (
-                    id TEXT PRIMARY KEY,
-                    board_id TEXT NOT NULL,
-                    node_type TEXT NOT NULL,
-                    title TEXT NOT NULL,
-                    pos_x REAL NOT NULL,
-                    pos_y REAL NOT NULL,
-                    pos_w REAL NOT NULL,
-                    pos_h REAL NOT NULL,
-                    data TEXT NOT NULL,
-                    metadata TEXT NOT NULL,
-                    FOREIGN KEY(board_id) REFERENCES canvas_boards(id) ON DELETE CASCADE
-                );
-            """)
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_canvas_nodes_board
-                ON canvas_nodes(board_id);
-            """)
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS canvas_edges (
-                    id TEXT PRIMARY KEY,
-                    board_id TEXT NOT NULL,
-                    source_node_id TEXT NOT NULL,
-                    target_node_id TEXT NOT NULL,
-                    edge_type TEXT NOT NULL,
-                    label TEXT,
-                    FOREIGN KEY(board_id) REFERENCES canvas_boards(id) ON DELETE CASCADE
-                );
-            """)
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_canvas_edges_board
-                ON canvas_edges(board_id);
-            """)
+
+            def _migrate_v1_tables_and_indexes(c: sqlite3.Connection):
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_canvas_boards_project
+                    ON canvas_boards(project_id);
+                """)
+                c.execute("""
+                    CREATE TABLE IF NOT EXISTS canvas_nodes (
+                        id TEXT PRIMARY KEY,
+                        board_id TEXT NOT NULL,
+                        node_type TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        pos_x REAL NOT NULL,
+                        pos_y REAL NOT NULL,
+                        pos_w REAL NOT NULL,
+                        pos_h REAL NOT NULL,
+                        data TEXT NOT NULL,
+                        metadata TEXT NOT NULL,
+                        FOREIGN KEY(board_id) REFERENCES canvas_boards(id) ON DELETE CASCADE
+                    );
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_canvas_nodes_board
+                    ON canvas_nodes(board_id);
+                """)
+                c.execute("""
+                    CREATE TABLE IF NOT EXISTS canvas_edges (
+                        id TEXT PRIMARY KEY,
+                        board_id TEXT NOT NULL,
+                        source_node_id TEXT NOT NULL,
+                        target_node_id TEXT NOT NULL,
+                        edge_type TEXT NOT NULL,
+                        label TEXT,
+                        FOREIGN KEY(board_id) REFERENCES canvas_boards(id) ON DELETE CASCADE
+                    );
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_canvas_edges_board
+                    ON canvas_edges(board_id);
+                """)
+
+            def _migrate_v2_tenant_id(c: sqlite3.Connection):
+                add_column_if_missing(c, "canvas_boards", "tenant_id", "TEXT NOT NULL DEFAULT 'default'")
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_canvas_boards_tenant
+                    ON canvas_boards(tenant_id);
+                """)
+
+            migrator = SchemaMigrator(conn, table_name="canvas_schema_version")
+            migrator.apply_all([
+                Migration(version=1, name="initial_canvas_tables", up=_migrate_v1_tables_and_indexes),
+                Migration(version=2, name="canvas_boards_tenant_id", up=_migrate_v2_tenant_id),
+            ])
             conn.commit()
             if self._memory_conn is None:
                 conn.close()
@@ -135,9 +152,10 @@ class SQLiteCanvasStore(BaseCanvasStore):
                 conn.execute(
                     """
                     INSERT INTO canvas_boards (
-                        id, project_id, name, viewport_x, viewport_y, zoom, metadata, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        id, tenant_id, project_id, name, viewport_x, viewport_y, zoom, metadata, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(id) DO UPDATE SET
+                        tenant_id = excluded.tenant_id,
                         project_id = excluded.project_id,
                         name = excluded.name,
                         viewport_x = excluded.viewport_x,
@@ -148,6 +166,7 @@ class SQLiteCanvasStore(BaseCanvasStore):
                     """,
                     (
                         str(board.id),
+                        getattr(board, "tenant_id", "default") or "default",
                         board.project_id,
                         board.name,
                         board.viewport_x,
@@ -171,9 +190,17 @@ class SQLiteCanvasStore(BaseCanvasStore):
 
         return board
 
-    def get_board(self, board_id: UUID, project_id: Optional[str] = None) -> Optional[CanvasBoard]:
+    def get_board(
+        self,
+        board_id: UUID,
+        project_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+    ) -> Optional[CanvasBoard]:
         query = "SELECT * FROM canvas_boards WHERE id = ?"
         params: list = [str(board_id)]
+        if tenant_id:
+            query += " AND tenant_id = ?"
+            params.append(tenant_id)
         if project_id:
             query += " AND project_id = ?"
             params.append(project_id)
@@ -196,6 +223,7 @@ class SQLiteCanvasStore(BaseCanvasStore):
 
                 return CanvasBoard(
                     id=UUID(b_row["id"]),
+                    tenant_id=b_row["tenant_id"] if "tenant_id" in b_row.keys() else "default",
                     project_id=b_row["project_id"],
                     name=b_row["name"],
                     viewport_x=float(b_row["viewport_x"]),
@@ -211,14 +239,21 @@ class SQLiteCanvasStore(BaseCanvasStore):
                 if self._memory_conn is None:
                     conn.close()
 
-    def list_boards(self, project_id: str = "default") -> List[CanvasBoard]:
+    def list_boards(
+        self,
+        project_id: str = "default",
+        tenant_id: Optional[str] = None,
+    ) -> List[CanvasBoard]:
         with self._lock:
             conn = self._get_connection()
             try:
-                cur = conn.execute(
-                    "SELECT id FROM canvas_boards WHERE project_id = ? ORDER BY updated_at DESC",
-                    (project_id,),
-                )
+                query = "SELECT id FROM canvas_boards WHERE project_id = ?"
+                params: list = [project_id]
+                if tenant_id:
+                    query += " AND tenant_id = ?"
+                    params.append(tenant_id)
+                query += " ORDER BY updated_at DESC"
+                cur = conn.execute(query, params)
                 board_ids = [UUID(r["id"]) for r in cur.fetchall()]
             finally:
                 if self._memory_conn is None:

@@ -22,12 +22,14 @@ class SyncProtocol:
         source_node_id: str,
         target_node_id: str,
         mutations: List[DeltaMutation],
+        tenant_id: str = "default",
     ) -> SyncPacket:
         # Compute SHA-256 over canonical mutation serialization
         raw_bytes = json.dumps([m.model_dump() for m in mutations], sort_keys=True).encode("utf-8")
         checksum = hashlib.sha256(raw_bytes).hexdigest()
 
         return SyncPacket(
+            tenant_id=tenant_id,
             source_node_id=source_node_id,
             target_node_id=target_node_id,
             mutations=mutations,
@@ -57,6 +59,7 @@ class SyncProtocol:
                 # Brand new entity
                 entity_store[mut.entity_id] = SyncEntity(
                     entity_id=mut.entity_id,
+                    tenant_id=getattr(mut, "tenant_id", "default"),
                     entity_type=mut.entity_type,
                     data=mut.payload,
                     lamport_clock=mut.lamport_clock,

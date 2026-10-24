@@ -41,11 +41,13 @@ class SQLiteArtifactManager(BaseArtifactManager):
         return conn
 
     def _init_db(self) -> None:
+        from storage.migrations import SchemaMigrator, Migration, add_column_if_missing
         with self._lock:
             conn = self._get_connection()
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS artifacts (
                     id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL DEFAULT 'default',
                     project_id TEXT NOT NULL DEFAULT 'default',
                     artifact_type TEXT NOT NULL,
                     title TEXT NOT NULL,
@@ -55,27 +57,42 @@ class SQLiteArtifactManager(BaseArtifactManager):
                     updated_at TEXT NOT NULL
                 );
             """)
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_artifacts_project
-                ON artifacts(project_id);
-            """)
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS artifact_revisions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    artifact_id TEXT NOT NULL,
-                    version INTEGER NOT NULL,
-                    content TEXT NOT NULL,
-                    author TEXT NOT NULL,
-                    diff_summary TEXT,
-                    created_at TEXT NOT NULL,
-                    FOREIGN KEY(artifact_id) REFERENCES artifacts(id) ON DELETE CASCADE,
-                    UNIQUE(artifact_id, version)
-                );
-            """)
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_revisions_artifact
-                ON artifact_revisions(artifact_id);
-            """)
+
+            def _migrate_v1_tables_and_indexes(c: sqlite3.Connection):
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_artifacts_project
+                    ON artifacts(project_id);
+                """)
+                c.execute("""
+                    CREATE TABLE IF NOT EXISTS artifact_revisions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        artifact_id TEXT NOT NULL,
+                        version INTEGER NOT NULL,
+                        content TEXT NOT NULL,
+                        author TEXT NOT NULL,
+                        diff_summary TEXT,
+                        created_at TEXT NOT NULL,
+                        FOREIGN KEY(artifact_id) REFERENCES artifacts(id) ON DELETE CASCADE,
+                        UNIQUE(artifact_id, version)
+                    );
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_revisions_artifact
+                    ON artifact_revisions(artifact_id);
+                """)
+
+            def _migrate_v2_tenant_id(c: sqlite3.Connection):
+                add_column_if_missing(c, "artifacts", "tenant_id", "TEXT NOT NULL DEFAULT 'default'")
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_artifacts_tenant
+                    ON artifacts(tenant_id);
+                """)
+
+            migrator = SchemaMigrator(conn, table_name="artifacts_schema_version")
+            migrator.apply_all([
+                Migration(version=1, name="initial_artifact_tables", up=_migrate_v1_tables_and_indexes),
+                Migration(version=2, name="artifacts_tenant_id", up=_migrate_v2_tenant_id),
+            ])
             conn.commit()
             if self._memory_conn is None:
                 conn.close()
@@ -87,6 +104,7 @@ class SQLiteArtifactManager(BaseArtifactManager):
         artifact_type: ArtifactType,
         initial_content: str,
         author: str = "agent",
+        tenant_id: str = "default",
     ) -> Artifact:
         artifact_id = uuid4()
         now = utc_now()
@@ -101,6 +119,7 @@ class SQLiteArtifactManager(BaseArtifactManager):
 
         artifact = Artifact(
             id=artifact_id,
+            tenant_id=tenant_id,
             project_id=project_id,
             artifact_type=artifact_type,
             title=title,
@@ -117,11 +136,12 @@ class SQLiteArtifactManager(BaseArtifactManager):
                 conn.execute(
                     """
                     INSERT INTO artifacts (
-                        id, project_id, artifact_type, title, current_version, metadata, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        id, tenant_id, project_id, artifact_type, title, current_version, metadata, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         str(artifact.id),
+                        artifact.tenant_id,
                         artifact.project_id,
                         artifact.artifact_type.value,
                         artifact.title,
@@ -153,11 +173,20 @@ class SQLiteArtifactManager(BaseArtifactManager):
 
         return artifact
 
-    def get_artifact(self, artifact_id: UUID) -> Optional[Artifact]:
+    def get_artifact(
+        self,
+        artifact_id: UUID,
+        tenant_id: Optional[str] = None,
+    ) -> Optional[Artifact]:
         with self._lock:
             conn = self._get_connection()
             try:
-                cur = conn.execute("SELECT * FROM artifacts WHERE id = ?", (str(artifact_id),))
+                query = "SELECT * FROM artifacts WHERE id = ?"
+                params: list = [str(artifact_id)]
+                if tenant_id:
+                    query += " AND tenant_id = ?"
+                    params.append(tenant_id)
+                cur = conn.execute(query, params)
                 art_row = cur.fetchone()
                 if not art_row:
                     return None
@@ -179,6 +208,7 @@ class SQLiteArtifactManager(BaseArtifactManager):
 
                 return Artifact(
                     id=UUID(art_row["id"]),
+                    tenant_id=art_row["tenant_id"] if "tenant_id" in art_row.keys() else "default",
                     project_id=art_row["project_id"],
                     artifact_type=ArtifactType(art_row["artifact_type"]),
                     title=art_row["title"],
@@ -192,14 +222,21 @@ class SQLiteArtifactManager(BaseArtifactManager):
                 if self._memory_conn is None:
                     conn.close()
 
-    def list_artifacts(self, project_id: str = "default") -> List[Artifact]:
+    def list_artifacts(
+        self,
+        project_id: str = "default",
+        tenant_id: Optional[str] = None,
+    ) -> List[Artifact]:
         with self._lock:
             conn = self._get_connection()
             try:
-                cur = conn.execute(
-                    "SELECT id FROM artifacts WHERE project_id = ? ORDER BY updated_at DESC",
-                    (project_id,),
-                )
+                query = "SELECT id FROM artifacts WHERE project_id = ?"
+                params: list = [project_id]
+                if tenant_id:
+                    query += " AND tenant_id = ?"
+                    params.append(tenant_id)
+                query += " ORDER BY updated_at DESC"
+                cur = conn.execute(query, params)
                 ids = [UUID(r["id"]) for r in cur.fetchall()]
             finally:
                 if self._memory_conn is None:

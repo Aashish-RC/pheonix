@@ -27,6 +27,8 @@ class BaseInboxStore(ABC):
         channel: Optional[NotificationChannel] = None,
         unread_only: bool = False,
         limit: int = 50,
+        user_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
     ) -> List[NotificationItem]:
         pass
 

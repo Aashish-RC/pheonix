@@ -40,6 +40,7 @@ class ProviderActivationManager:
         provider_id: str,
         secret: str = "",
         probe_fn: Optional[Callable[[ProviderDescriptor, str], PingResult]] = None,
+        tenant_id: str = "default",
     ) -> Tuple[bool, ActivatedProvider, PingResult]:
         """
         Onboard and activate a provider key.
@@ -59,6 +60,7 @@ class ProviderActivationManager:
                 secret=secret,
                 provider=provider_id,
                 description=f"Active credential for {desc.name}",
+                tenant_id=tenant_id,
             )
 
         # 2. Execute automated ping probe
@@ -70,6 +72,7 @@ class ProviderActivationManager:
             provider_id=provider_id,
             name=desc.name,
             key_id=key_id,
+            tenant_id=tenant_id,
             status=status,
             auth_type=desc.auth_type,
             last_ping_at=now,
@@ -239,6 +242,7 @@ class ProviderActivationManager:
     def list_activated_providers(
         self,
         status_filter: Optional[ProviderStatus] = None,
+        tenant_id: Optional[str] = None,
     ) -> List[ActivatedProvider]:
         """List activated providers, ensuring vault status synchronization."""
         results = []
@@ -246,6 +250,8 @@ class ProviderActivationManager:
             # Trigger status sync
             self.get_provider_status(pid)
             rec = self._activated[pid]
+            if tenant_id and getattr(rec, "tenant_id", "default") != tenant_id:
+                continue
             if status_filter is None or rec.status == status_filter:
                 results.append(rec)
         return results

@@ -32,7 +32,8 @@ class ObservabilityClient:
         actor: str = "anonymous",
         cached: bool = False,
         status_code: int = 200,
-        explicit_cost: Optional[float] = None
+        explicit_cost: Optional[float] = None,
+        tenant_id: str = "default",
     ) -> UsageRecord:
         """Logs a single model execution and returns the persisted record."""
         return self.logger.log(
@@ -45,18 +46,26 @@ class ObservabilityClient:
             actor=actor,
             cached=cached,
             status_code=status_code,
-            explicit_cost=explicit_cost
+            explicit_cost=explicit_cost,
+            tenant_id=tenant_id,
         )
 
     def get_personal_view(
         self,
         actor: Optional[str] = None,
-        since_timestamp: Optional[str] = None
+        since_timestamp: Optional[str] = None,
+        tenant_id: Optional[str] = None,
     ) -> PersonalUsageView:
         """Retrieves structured personal usage and spend metrics."""
-        return self.view_builder.build_view(actor=actor, since_timestamp=since_timestamp)
+        return self.view_builder.build_view(
+            actor=actor, since_timestamp=since_timestamp, tenant_id=tenant_id
+        )
 
-    def print_dashboard(self, actor: Optional[str] = None) -> str:
+    def print_dashboard(
+        self,
+        actor: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+    ) -> str:
         """Renders and returns formatted ASCII personal dashboard."""
-        view = self.get_personal_view(actor=actor)
+        view = self.get_personal_view(actor=actor, tenant_id=tenant_id)
         return self.view_builder.render_cli_dashboard(view)

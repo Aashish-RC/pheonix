@@ -52,12 +52,14 @@ class LocalHybridSearchEngine(BaseSearchEngine):
         return conn
 
     def _init_db(self) -> None:
+        from storage.migrations import SchemaMigrator, Migration, add_column_if_missing
         with self._lock:
             conn = self._get_connection()
             # Metadata store table
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS search_docs (
                     id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL DEFAULT 'default',
                     corpus_type TEXT NOT NULL,
                     project_id TEXT NOT NULL DEFAULT 'default',
                     title TEXT NOT NULL,
@@ -68,27 +70,40 @@ class LocalHybridSearchEngine(BaseSearchEngine):
                     timestamp TEXT NOT NULL
                 );
             """)
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_search_project
-                ON search_docs(project_id);
-            """)
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_search_project_corpus
-                ON search_docs(project_id, corpus_type);
-            """)
 
-            # SQLite FTS5 Virtual Table for full-text lexical search
-            conn.execute("""
-                CREATE VIRTUAL TABLE IF NOT EXISTS docs_fts USING fts5(
-                    id UNINDEXED,
-                    project_id UNINDEXED,
-                    corpus_type UNINDEXED,
-                    title,
-                    content,
-                    tags,
-                    tokenize = 'porter unicode61'
-                );
-            """)
+            def _migrate_v1_tables_and_indexes(c: sqlite3.Connection):
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_search_project
+                    ON search_docs(project_id);
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_search_project_corpus
+                    ON search_docs(project_id, corpus_type);
+                """)
+                c.execute("""
+                    CREATE VIRTUAL TABLE IF NOT EXISTS docs_fts USING fts5(
+                        id UNINDEXED,
+                        project_id UNINDEXED,
+                        corpus_type UNINDEXED,
+                        title,
+                        content,
+                        tags,
+                        tokenize = 'porter unicode61'
+                    );
+                """)
+
+            def _migrate_v2_tenant_id(c: sqlite3.Connection):
+                add_column_if_missing(c, "search_docs", "tenant_id", "TEXT NOT NULL DEFAULT 'default'")
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_search_tenant
+                    ON search_docs(tenant_id);
+                """)
+
+            migrator = SchemaMigrator(conn)
+            migrator.apply_all([
+                Migration(version=1, name="initial_search_tables", up=_migrate_v1_tables_and_indexes),
+                Migration(version=2, name="search_docs_tenant_id", up=_migrate_v2_tenant_id),
+            ])
             conn.commit()
             if self._memory_conn is None:
                 conn.close()
@@ -137,9 +152,10 @@ class LocalHybridSearchEngine(BaseSearchEngine):
                     conn.execute(
                         """
                         INSERT INTO search_docs (
-                            id, corpus_type, project_id, title, content, tags, metadata, embedding_json, timestamp
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            id, tenant_id, corpus_type, project_id, title, content, tags, metadata, embedding_json, timestamp
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ON CONFLICT(id) DO UPDATE SET
+                            tenant_id = excluded.tenant_id,
                             corpus_type = excluded.corpus_type,
                             project_id = excluded.project_id,
                             title = excluded.title,
@@ -151,6 +167,7 @@ class LocalHybridSearchEngine(BaseSearchEngine):
                         """,
                         (
                             doc.id,
+                            getattr(doc, "tenant_id", "default") or "default",
                             doc.corpus_type.value,
                             doc.project_id,
                             doc.title,

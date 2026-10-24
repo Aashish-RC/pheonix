@@ -73,6 +73,7 @@ class CanvasBoard(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     id: UUID = Field(default_factory=uuid4)
+    tenant_id: str = Field(default="default", description="Strict tenant boundary")
     project_id: str = Field(default="default", description="Strict workspace boundary")
     name: str = "Default Canvas"
     viewport_x: float = 0.0
@@ -101,6 +102,7 @@ class Artifact(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     id: UUID = Field(default_factory=uuid4)
+    tenant_id: str = Field(default="default", description="Strict tenant boundary")
     project_id: str = Field(default="default")
     artifact_type: ArtifactType = ArtifactType.CODE
     title: str = "Untitled Artifact"

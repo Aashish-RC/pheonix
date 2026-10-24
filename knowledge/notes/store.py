@@ -35,11 +35,13 @@ class NoteStore(BaseNoteStore):
         return conn
 
     def _init_db(self) -> None:
+        from storage.migrations import SchemaMigrator, Migration, add_column_if_missing
         with self._lock:
             conn = self._get_connection()
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS notes (
                     id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL DEFAULT 'default',
                     project_id TEXT NOT NULL DEFAULT 'default',
                     title TEXT NOT NULL,
                     slug TEXT NOT NULL,
@@ -51,22 +53,39 @@ class NoteStore(BaseNoteStore):
                     updated_at TEXT NOT NULL
                 );
             """)
-            conn.execute("""
-                CREATE UNIQUE INDEX IF NOT EXISTS idx_notes_project_title
-                ON notes(project_id, title);
-            """)
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_notes_project_slug
-                ON notes(project_id, slug);
-            """)
+
+            def _migrate_v1_indexes(c: sqlite3.Connection):
+                c.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_notes_project_title
+                    ON notes(project_id, title);
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_notes_project_slug
+                    ON notes(project_id, slug);
+                """)
+
+            def _migrate_v2_tenant(c: sqlite3.Connection):
+                add_column_if_missing(c, "notes", "tenant_id", "TEXT NOT NULL DEFAULT 'default'")
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_notes_tenant
+                    ON notes(tenant_id);
+                """)
+
+            migrator = SchemaMigrator(conn)
+            migrator.apply_all([
+                Migration(version=1, name="initial_notes_indexes", up=_migrate_v1_indexes),
+                Migration(version=2, name="notes_tenant_id", up=_migrate_v2_tenant),
+            ])
             conn.commit()
             if self._memory_conn is None:
                 conn.close()
 
     def _row_to_note(self, row: sqlite3.Row) -> Note:
         from datetime import datetime
+        cols = row.keys()
         return Note(
             id=UUID(row["id"]),
+            tenant_id=row["tenant_id"] if "tenant_id" in cols and row["tenant_id"] else "default",
             project_id=row["project_id"],
             title=row["title"],
             slug=row["slug"],
@@ -100,10 +119,11 @@ class NoteStore(BaseNoteStore):
                 conn.execute(
                     """
                     INSERT INTO notes (
-                        id, project_id, title, slug, content, tags,
+                        id, tenant_id, project_id, title, slug, content, tags,
                         metadata, outgoing_links, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(id) DO UPDATE SET
+                        tenant_id = excluded.tenant_id,
                         project_id = excluded.project_id,
                         title = excluded.title,
                         slug = excluded.slug,
@@ -113,6 +133,7 @@ class NoteStore(BaseNoteStore):
                         outgoing_links = excluded.outgoing_links,
                         updated_at = excluded.updated_at
                     ON CONFLICT(project_id, title) DO UPDATE SET
+                        tenant_id = excluded.tenant_id,
                         slug = excluded.slug,
                         content = excluded.content,
                         tags = excluded.tags,
@@ -122,6 +143,7 @@ class NoteStore(BaseNoteStore):
                     """,
                     (
                         str(note.id),
+                        getattr(note, "tenant_id", "default") or "default",
                         note.project_id,
                         note.title,
                         note.slug,

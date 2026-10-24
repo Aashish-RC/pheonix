@@ -36,11 +36,13 @@ class SQLiteFactStore(BaseFactStore):
 
     def _init_db(self) -> None:
         """Create tables and indexes if they do not exist."""
+        from storage.migrations import SchemaMigrator, Migration, add_column_if_missing
         with self._lock:
             conn = self._get_connection()
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS facts (
                     id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL DEFAULT 'default',
                     user_id TEXT NOT NULL,
                     project_id TEXT NOT NULL DEFAULT 'default',
                     key TEXT NOT NULL,
@@ -57,24 +59,39 @@ class SQLiteFactStore(BaseFactStore):
                     access_count INTEGER NOT NULL DEFAULT 0
                 );
             """)
-            # Schema migration check
-            cur = conn.execute("PRAGMA table_info(facts)")
-            cols = [r["name"] for r in cur.fetchall()]
-            if "project_id" not in cols:
-                conn.execute("ALTER TABLE facts ADD COLUMN project_id TEXT DEFAULT 'default'")
 
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_facts_user_active
-                ON facts(user_id, is_active);
-            """)
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_facts_user_key_active
-                ON facts(user_id, key, is_active);
-            """)
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS idx_facts_project
-                ON facts(project_id);
-            """)
+            def _migrate_v1_legacy(c: sqlite3.Connection):
+                add_column_if_missing(c, "facts", "project_id", "TEXT DEFAULT 'default'")
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_facts_user_active
+                    ON facts(user_id, is_active);
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_facts_user_key_active
+                    ON facts(user_id, key, is_active);
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_facts_project
+                    ON facts(project_id);
+                """)
+
+            def _migrate_v2_tenant(c: sqlite3.Connection):
+                add_column_if_missing(c, "facts", "tenant_id", "TEXT NOT NULL DEFAULT 'default'")
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_facts_tenant
+                    ON facts(tenant_id);
+                """)
+                c.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_facts_tenant_user_active
+                    ON facts(tenant_id, user_id, is_active);
+                """)
+
+            migrator = SchemaMigrator(conn)
+            migrator.apply_all([
+                Migration(version=1, name="facts_initial_and_project_id", up=_migrate_v1_legacy),
+                Migration(version=2, name="facts_tenant_id", up=_migrate_v2_tenant),
+            ])
+
             conn.commit()
             if self._memory_conn is None:
                 conn.close()
@@ -83,6 +100,7 @@ class SQLiteFactStore(BaseFactStore):
         cols = row.keys()
         return FactItem(
             id=UUID(row["id"]),
+            tenant_id=row["tenant_id"] if "tenant_id" in cols and row["tenant_id"] else "default",
             user_id=row["user_id"],
             project_id=row["project_id"] if "project_id" in cols and row["project_id"] else "default",
             key=row["key"],
@@ -107,10 +125,10 @@ class SQLiteFactStore(BaseFactStore):
         with self._lock:
             conn = self._get_connection()
             try:
-                # Check for existing latest fact for this user, project, and key
+                # Check for existing latest fact for this user, tenant, project, and key
                 cur = conn.execute(
-                    "SELECT id, version FROM facts WHERE user_id = ? AND project_id = ? AND key = ? AND is_active = 1",
-                    (fact.user_id, fact.project_id or "default", fact.key),
+                    "SELECT id, version FROM facts WHERE user_id = ? AND tenant_id = ? AND project_id = ? AND key = ? AND is_active = 1",
+                    (fact.user_id, fact.tenant_id or "default", fact.project_id or "default", fact.key),
                 )
                 existing = cur.fetchone()
 
@@ -132,13 +150,14 @@ class SQLiteFactStore(BaseFactStore):
                 conn.execute(
                     """
                     INSERT INTO facts (
-                        id, user_id, project_id, key, value, category, source_event_id,
+                        id, tenant_id, user_id, project_id, key, value, category, source_event_id,
                         version, is_active, confidence_score, superseded_by,
                         created_at, updated_at, last_accessed_at, access_count
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         str(fact.id),
+                        fact.tenant_id or "default",
                         fact.user_id,
                         fact.project_id or "default",
                         fact.key,
@@ -162,10 +181,17 @@ class SQLiteFactStore(BaseFactStore):
         return fact
 
     def get_facts(
-        self, user_id: str, active_only: bool = True, project_id: Optional[str] = None
+        self,
+        user_id: str,
+        active_only: bool = True,
+        project_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
     ) -> List[FactItem]:
         query = "SELECT * FROM facts WHERE user_id = ?"
         params: list = [user_id]
+        if tenant_id:
+            query += " AND tenant_id = ?"
+            params.append(tenant_id)
         if active_only:
             query += " AND is_active = 1"
         if project_id:
@@ -183,10 +209,18 @@ class SQLiteFactStore(BaseFactStore):
                     conn.close()
 
     def get_fact_by_key(
-        self, user_id: str, key: str, active_only: bool = True, project_id: Optional[str] = None
+        self,
+        user_id: str,
+        key: str,
+        active_only: bool = True,
+        project_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
     ) -> Optional[FactItem]:
         query = "SELECT * FROM facts WHERE user_id = ? AND key = ?"
         params: list = [user_id, key]
+        if tenant_id:
+            query += " AND tenant_id = ?"
+            params.append(tenant_id)
         if active_only:
             query += " AND is_active = 1"
         if project_id:

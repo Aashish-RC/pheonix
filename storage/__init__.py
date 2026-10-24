@@ -9,6 +9,7 @@ from .core.quota import QuotaManager, StorageQuotaExceededError
 from .core.library import FileLibrary
 from .core.engine import StorageEngine
 from .client import StorageClient
+from .migrations import SchemaMigrator, Migration, add_column_if_missing, table_columns
 
 __all__ = [
     "StoredFile",
@@ -21,4 +22,8 @@ __all__ = [
     "FileLibrary",
     "StorageEngine",
     "StorageClient",
+    "SchemaMigrator",
+    "Migration",
+    "add_column_if_missing",
+    "table_columns",
 ]

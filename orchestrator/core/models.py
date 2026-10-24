@@ -26,6 +26,7 @@ class PlanNode(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     id: str = Field(default_factory=lambda: str(uuid4()))
+    tenant_id: str = "default"
     title: str = "Untitled Step"
     action: str = "noop"
     params: Dict[str, Any] = Field(default_factory=dict)
@@ -42,6 +43,7 @@ class PlanDAG(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     id: str = Field(default_factory=lambda: str(uuid4()))
+    tenant_id: str = "default"
     project_id: str = "default"
     title: str = "Task Execution Plan"
     nodes: Dict[str, PlanNode] = Field(default_factory=dict)

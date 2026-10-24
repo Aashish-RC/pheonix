@@ -27,10 +27,15 @@ class ComponentRegistry:
         self._components: Dict[str, ComponentManifest] = {}
         self._history: List[Dict[str, Any]] = []
 
-    def get_component(self, name: str) -> Optional[ComponentManifest]:
-        return self._components.get(name)
+    def get_component(self, name: str, tenant_id: Optional[str] = None) -> Optional[ComponentManifest]:
+        comp = self._components.get(name)
+        if comp and (tenant_id is None or comp.tenant_id == tenant_id):
+            return comp
+        return None
 
-    def list_components(self) -> List[ComponentManifest]:
+    def list_components(self, tenant_id: Optional[str] = None) -> List[ComponentManifest]:
+        if tenant_id:
+            return [c for c in self._components.values() if c.tenant_id == tenant_id]
         return list(self._components.values())
 
     def register_component(

@@ -14,6 +14,7 @@ RenewalStatus = Literal["active", "due_soon", "overdue"]
 class SubscriptionPlan(BaseModel):
     """Configuration representing a subscribed provider tier or plan."""
     plan_id: str
+    tenant_id: str = "default"
     provider: str
     name: str
     monthly_cost_usd: float = Field(default=0.0, ge=0.0)
@@ -25,6 +26,7 @@ class SubscriptionPlan(BaseModel):
 class KeyQuotaStatus(BaseModel):
     """Real-time operational health and quota consumption of a provider key."""
     key_id: str
+    tenant_id: str = "default"
     provider: str
     is_active: bool = True
     current_spend_usd: float = Field(default=0.0, ge=0.0)
@@ -38,6 +40,7 @@ class KeyQuotaStatus(BaseModel):
 class ProviderRenewal(BaseModel):
     """Upcoming renewal countdown and estimated cost for a provider subscription."""
     provider: str
+    tenant_id: str = "default"
     plan_name: str
     next_renewal_date: str  # YYYY-MM-DD
     days_remaining: int

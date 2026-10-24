@@ -11,6 +11,7 @@ class UsageRecord(BaseModel):
     """Immutable ledger record representing a single model invocation."""
     record_id: str
     request_id: str
+    tenant_id: str = "default"
     timestamp: str
     actor: str = "anonymous"
     model: str
@@ -45,6 +46,7 @@ class ModelBreakdown(BaseModel):
 
 class PersonalUsageView(BaseModel):
     """Personalized consumption and expenditure summary for the developer/user."""
+    tenant_id: str = "default"
     time_window: str = "all-time"
     total_requests: int = 0
     total_tokens: int = 0

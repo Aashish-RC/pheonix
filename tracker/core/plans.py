@@ -54,13 +54,20 @@ class PlanRegistry:
             ),
         ]
         for p in defaults:
-            self._plans[p.provider.lower()] = p
+            self.register_plan(p)
 
     def register_plan(self, plan: SubscriptionPlan) -> None:
-        self._plans[plan.provider.lower()] = plan
+        key = f"{plan.tenant_id}:{plan.provider.lower()}"
+        self._plans[key] = plan
 
-    def get_plan(self, provider: str) -> Optional[SubscriptionPlan]:
-        return self._plans.get(provider.lower())
+    def get_plan(self, provider: str, tenant_id: str = "default") -> Optional[SubscriptionPlan]:
+        key = f"{tenant_id}:{provider.lower()}"
+        if key in self._plans:
+            return self._plans[key]
+        default_key = f"default:{provider.lower()}"
+        return self._plans.get(default_key)
 
-    def list_plans(self) -> List[SubscriptionPlan]:
+    def list_plans(self, tenant_id: Optional[str] = None) -> List[SubscriptionPlan]:
+        if tenant_id:
+            return [p for p in self._plans.values() if p.tenant_id == tenant_id]
         return list(self._plans.values())

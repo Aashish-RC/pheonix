@@ -25,6 +25,7 @@ class ReleaseStatus(str, Enum):
 
 class ReleasePackage(BaseModel):
     release_id: str = Field(default_factory=lambda: f"rel_{uuid.uuid4().hex[:10]}")
+    tenant_id: str = "default"
     version: str
     channel: ReleaseChannel = ReleaseChannel.STABLE
     status: ReleaseStatus = ReleaseStatus.STAGED
@@ -51,5 +52,6 @@ class DiagnosticCheckResult(BaseModel):
 class SystemHealthReport(BaseModel):
     overall_healthy: bool
     health_score: float
+    tenant_id: str = "default"
     checks: List[DiagnosticCheckResult] = Field(default_factory=list)
     timestamp: float = Field(default_factory=time.time)

@@ -22,6 +22,7 @@ class ChangelogEntry(BaseModel):
 
 class ComponentManifest(BaseModel):
     name: str
+    tenant_id: str = "default"
     version: str  # SemVer 2.0 (e.g., "0.1.0")
     description: str
     dependencies: List[DependencyRule] = Field(default_factory=list)

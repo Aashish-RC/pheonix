@@ -4,6 +4,7 @@ Delta Change Tracker capturing local mutations for state synchronization.
 from __future__ import annotations
 
 import time
+import uuid
 from typing import Any, Dict, List, Optional
 from sync_engine.core.models import DeltaMutation, EntityType, MutationType
 
@@ -22,9 +23,11 @@ class DeltaChangeTracker:
         entity_type: EntityType,
         mutation_type: MutationType,
         payload: Dict[str, Any],
+        tenant_id: str = "default",
     ) -> DeltaMutation:
         self._lamport_clock += 1
         mutation = DeltaMutation(
+            tenant_id=tenant_id,
             entity_id=entity_id,
             entity_type=entity_type,
             mutation_type=mutation_type,
@@ -36,8 +39,15 @@ class DeltaChangeTracker:
         self._mutations.append(mutation)
         return mutation
 
-    def get_deltas_since(self, since_timestamp: float) -> List[DeltaMutation]:
-        return [m for m in self._mutations if m.timestamp >= since_timestamp]
+    def get_deltas_since(
+        self,
+        since_timestamp: float,
+        tenant_id: Optional[str] = None,
+    ) -> List[DeltaMutation]:
+        return [
+            m for m in self._mutations
+            if m.timestamp >= since_timestamp and (tenant_id is None or m.tenant_id == tenant_id)
+        ]
 
     def all_mutations(self) -> List[DeltaMutation]:
         return list(self._mutations)

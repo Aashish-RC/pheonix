@@ -27,12 +27,14 @@ class ObservabilityStore:
         return conn
 
     def _init_db(self) -> None:
-        """Initializes the database schema if not present."""
+        """Initializes the database schema if not present with migration support."""
+        from storage.migrations import SchemaMigrator, Migration, add_column_if_missing
         with self._get_connection() as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS usage_ledger (
                     record_id TEXT PRIMARY KEY,
                     request_id TEXT NOT NULL,
+                    tenant_id TEXT NOT NULL DEFAULT 'default',
                     timestamp TEXT NOT NULL,
                     actor TEXT NOT NULL,
                     model TEXT NOT NULL,
@@ -46,9 +48,21 @@ class ObservabilityStore:
                     status_code INTEGER NOT NULL
                 )
             """)
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_actor ON usage_ledger(actor)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_model ON usage_ledger(model)")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON usage_ledger(timestamp)")
+
+            def _migrate_v1_indexes(c: sqlite3.Connection):
+                c.execute("CREATE INDEX IF NOT EXISTS idx_actor ON usage_ledger(actor)")
+                c.execute("CREATE INDEX IF NOT EXISTS idx_model ON usage_ledger(model)")
+                c.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON usage_ledger(timestamp)")
+
+            def _migrate_v2_tenant(c: sqlite3.Connection):
+                add_column_if_missing(c, "usage_ledger", "tenant_id", "TEXT NOT NULL DEFAULT 'default'")
+                c.execute("CREATE INDEX IF NOT EXISTS idx_ledger_tenant ON usage_ledger(tenant_id)")
+
+            migrator = SchemaMigrator(conn)
+            migrator.apply_all([
+                Migration(version=1, name="initial_usage_ledger_indexes", up=_migrate_v1_indexes),
+                Migration(version=2, name="usage_ledger_tenant_id", up=_migrate_v2_tenant),
+            ])
             conn.commit()
 
     def insert_record(self, record: UsageRecord) -> None:
@@ -56,13 +70,14 @@ class ObservabilityStore:
         with self._get_connection() as conn:
             conn.execute("""
                 INSERT INTO usage_ledger (
-                    record_id, request_id, timestamp, actor, model, provider,
+                    record_id, request_id, tenant_id, timestamp, actor, model, provider,
                     prompt_tokens, completion_tokens, total_tokens, cost_usd,
                     latency_ms, cached, status_code
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 record.record_id,
                 record.request_id,
+                getattr(record, "tenant_id", "default") or "default",
                 record.timestamp,
                 record.actor,
                 record.model,
@@ -81,12 +96,16 @@ class ObservabilityStore:
         self,
         actor: Optional[str] = None,
         model: Optional[str] = None,
-        since_timestamp: Optional[str] = None
+        since_timestamp: Optional[str] = None,
+        tenant_id: Optional[str] = None,
     ) -> List[UsageRecord]:
         """Queries stored records with optional filtering."""
         query = "SELECT * FROM usage_ledger WHERE 1=1"
         params = []
 
+        if tenant_id:
+            query += " AND tenant_id = ?"
+            params.append(tenant_id)
         if actor:
             query += " AND actor = ?"
             params.append(actor)
@@ -105,6 +124,7 @@ class ObservabilityStore:
                 UsageRecord(
                     record_id=r["record_id"],
                     request_id=r["request_id"],
+                    tenant_id=r["tenant_id"] if "tenant_id" in r.keys() else "default",
                     timestamp=r["timestamp"],
                     actor=r["actor"],
                     model=r["model"],
@@ -120,7 +140,10 @@ class ObservabilityStore:
                 for r in rows
             ]
 
-    def count_records(self) -> int:
+    def count_records(self, tenant_id: Optional[str] = None) -> int:
         with self._get_connection() as conn:
-            row = conn.execute("SELECT COUNT(*) FROM usage_ledger").fetchone()
+            if tenant_id:
+                row = conn.execute("SELECT COUNT(*) FROM usage_ledger WHERE tenant_id = ?", (tenant_id,)).fetchone()
+            else:
+                row = conn.execute("SELECT COUNT(*) FROM usage_ledger").fetchone()
             return row[0] if row else 0
