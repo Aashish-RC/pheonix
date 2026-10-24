@@ -1,0 +1,9 @@
+# Gitleaks ignore list for historical test mock credential commits
+166641c77f506bafd54fa51ea9a360ff8b4b0050:guardrails/tests/extra_attack_vectors.json:generic-api-key:200
+ada075f6b801ea7abaa3deb867124e07bb8d36f0:notifications/tests/test_novu_backend.py:generic-api-key:45
+bbf4ff1226a43143b7f24350ba3c51ae7f8b3483:internal_agents/tests/test_guardrail_review.py:generic-api-key:50
+48aafcb761b4e33c36f751110ce98c5a8d43c332:guardrails/tests/attack_vectors.json:generic-api-key:59
+48aafcb761b4e33c36f751110ce98c5a8d43c332:guardrails/tests/test_guardrails.py:generic-api-key:106
+f0b4e7f514ea27f61dbfdb3eb1bded3b11e2ffdf:vault/tests/test_vault.py:generic-api-key:57
+f0b4e7f514ea27f61dbfdb3eb1bded3b11e2ffdf:vault/tests/test_vault.py:github-pat:119
+52776deba22dd8fea596fd289409f4abc2b28caa:model-gateway/tests/byok.test.ts:generic-api-key:20
