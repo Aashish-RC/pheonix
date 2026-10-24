@@ -82,6 +82,37 @@ def test_docker_runner_cli_structure():
     assert captured_inputs[0] == "print(2 + 2)"
 
 
+def test_docker_runner_cli_structure_shell_and_python_distinction():
+    """Verify that DockerRunner builds correct CLI for shell vs python requests without needing Docker."""
+    runner = DockerRunner()
+
+    py_req = ExecutionRequest(language="python", code="print(2 + 2)")
+    py_cmd = runner.build_command(py_req, container_name="test-py")
+    assert py_cmd[-3:] == ["python", "-B", "-"]
+
+    sh_req = ExecutionRequest(language="shell", code="echo 'test-shell'")
+    sh_cmd = runner.build_command(sh_req, container_name="test-sh")
+    assert sh_cmd[-3:] == ["sh", "-c", "echo 'test-shell'"]
+
+    # Also test fake execution verifies stdin behavior
+    captured: dict = {}
+
+    def fake_runner(cmd: List[str], input: Any = None, **kwargs: Any) -> subprocess.CompletedProcess:
+        captured["cmd"] = cmd
+        captured["input"] = input
+        return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="out", stderr="")
+
+    mock_runner = DockerRunner(command_runner=fake_runner)
+
+    mock_runner.execute(py_req)
+    assert captured["cmd"][-3:] == ["python", "-B", "-"]
+    assert captured["input"] == "print(2 + 2)"
+
+    mock_runner.execute(sh_req)
+    assert captured["cmd"][-3:] == ["sh", "-c", "echo 'test-shell'"]
+    assert captured["input"] is None
+
+
 def test_docker_runner_handles_timeout_with_fake_runner():
     """Verify that TimeoutExpired returns SandboxStatus.TIMEOUT and exit_code -1."""
     def fake_command_runner(cmd: List[str], **kwargs: Any) -> subprocess.CompletedProcess:
@@ -227,3 +258,16 @@ with open('/outside_disallowed.txt', 'w') as f:
     assert result.status == SandboxStatus.FAILED
     assert result.exit_code != 0
     assert "read-only file system" in result.stderr.lower() or "errno 30" in result.stderr.lower()
+
+
+@pytest.mark.live
+def test_docker_live_shell_command(live_docker_runner):
+    """Live Test 5: a shell command executes via sh inside container."""
+    req = ExecutionRequest(
+        language="shell",
+        code="echo 'live-shell-active'",
+    )
+    result = live_docker_runner.execute(req)
+    assert result.status == SandboxStatus.SUCCESS
+    assert result.exit_code == 0
+    assert "live-shell-active" in result.stdout

@@ -78,6 +78,37 @@ class DockerRunner(BaseDeviceRunner):
 
         return self._docker_available
 
+    def build_command(
+        self,
+        request: ExecutionRequest,
+        container_name: Optional[str] = None,
+        scratch_dir: Optional[str] = None,
+    ) -> List[str]:
+        """Construct the exact Docker CLI command for a request based on language."""
+        c_name = container_name or f"pheonix-sb-{uuid.uuid4().hex[:12]}"
+        cmd: List[str] = [
+            "docker", "run", "--rm", "-i",
+            "--name", c_name,
+            "--network", self.network,
+            f"--memory={self.memory}",
+            f"--cpus={self.cpus}",
+            "--read-only",
+            "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",
+            "-e", "PYTHONDONTWRITEBYTECODE=1",
+        ]
+
+        if scratch_dir and request.files:
+            scratch_path = Path(scratch_dir).resolve()
+            cmd.extend(["-v", f"{str(scratch_path)}:/workspace:ro", "-w", "/workspace"])
+
+        is_shell = request.language.lower() in ("shell", "bash", "sh", "cmd", "powershell")
+        if is_shell:
+            cmd.extend([self.image, "sh", "-c", request.code])
+        else:
+            cmd.extend([self.image, "python", "-B", "-"])
+
+        return cmd
+
     def execute(
         self,
         request: ExecutionRequest,
@@ -108,18 +139,6 @@ class DockerRunner(BaseDeviceRunner):
 
         container_name = f"pheonix-sb-{uuid.uuid4().hex[:12]}"
 
-        # 2. Construct Docker command
-        cmd: List[str] = [
-            "docker", "run", "--rm", "-i",
-            "--name", container_name,
-            "--network", self.network,
-            f"--memory={self.memory}",
-            f"--cpus={self.cpus}",
-            "--read-only",
-            "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",
-            "-e", "PYTHONDONTWRITEBYTECODE=1",
-        ]
-
         # Optional scratch directory / virtual files mount (read-only)
         if scratch_dir and request.files:
             scratch_path = Path(scratch_dir).resolve()
@@ -128,10 +147,11 @@ class DockerRunner(BaseDeviceRunner):
                 file_path = scratch_path / filename
                 file_path.parent.mkdir(parents=True, exist_ok=True)
                 file_path.write_text(content, encoding="utf-8")
-            cmd.extend(["-v", f"{str(scratch_path)}:/workspace:ro", "-w", "/workspace"])
 
-        # Target image and command reading from stdin
-        cmd.extend([self.image, "python", "-B", "-"])
+        cmd = self.build_command(request, container_name=container_name, scratch_dir=scratch_dir)
+
+        is_shell = request.language.lower() in ("shell", "bash", "sh", "cmd", "powershell")
+        stdin_input = None if is_shell else request.code
 
         # Determine effective timeout
         timeout = (
@@ -144,7 +164,7 @@ class DockerRunner(BaseDeviceRunner):
         try:
             res = self.command_runner(
                 cmd,
-                input=request.code,
+                input=stdin_input,
                 capture_output=True,
                 text=True,
                 timeout=timeout,
@@ -216,6 +236,22 @@ class DockerRunner(BaseDeviceRunner):
         req = ExecutionRequest(
             language="python",
             code=code,
+            limits=limits or ResourceLimits(),
+            files=files or {},
+        )
+        return self.execute(req, scratch_dir=scratch_dir)
+
+    def run_shell(
+        self,
+        command: str,
+        limits: Optional[ResourceLimits] = None,
+        files: Optional[Dict[str, str]] = None,
+        scratch_dir: Optional[str] = None,
+    ) -> SandboxResult:
+        """Convenience method for running Shell commands."""
+        req = ExecutionRequest(
+            language="shell",
+            code=command,
             limits=limits or ResourceLimits(),
             files=files or {},
         )
