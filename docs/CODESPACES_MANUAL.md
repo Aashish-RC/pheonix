@@ -115,6 +115,7 @@ Codespaces automatically forwards exposed ports to public/private preview URLs. 
 
 | Port | Service | Description |
 |---|---|---|
+| **`8080`** | Pheonix Unified Console | Local web management console, live canvas, and telemetry (`python console/server.py`) |
 | **`4000`** | Model Gateway | High-performance routing & OpenAI-compatible proxy |
 | **`6333`** | Qdrant | Vector database REST API & dashboard |
 | **`7700`** | Meilisearch | Fast search engine endpoint |

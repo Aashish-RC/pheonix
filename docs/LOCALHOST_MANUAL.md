@@ -4,10 +4,11 @@ This guide explains how to install the monorepo, start its local infrastructure,
 
 ## What you will be running
 
-Pheonix is a monorepo of Python components and a TypeScript model gateway, not one web application with a single root `run` command. The root Docker Compose file starts infrastructure and the model gateway. Optional Python APIs are started individually. There is no unified Pheonix dashboard; the model gateway's optional console is disabled by default.
+Pheonix is a monorepo of Python components and a TypeScript model gateway, with a unified web management console and optional modular microservices. The root Docker Compose file starts infrastructure and the model gateway. The Pheonix Unified Console provides an interactive web dashboard for conversation, live canvas, prompt tuning, telemetry, and audit inspection.
 
 | Service | How it starts | Local address |
 |---|---|---|
+| Pheonix Unified Console | `python console/server.py` or uvicorn | `http://localhost:8080` |
 | Model Gateway | Root Docker Compose, or run from `model-gateway/` | `http://localhost:4000` |
 | Qdrant vector database | Root Docker Compose | `http://localhost:6333` |
 | Ollama local model server | Root Docker Compose | `http://localhost:11434` |
@@ -125,11 +126,44 @@ pnpm --dir model-gateway start
 
 The gateway listens on `http://localhost:4000`. For other providers, export that provider's real key and any required custom base URL before starting it. In PowerShell, use `$env:PORT = "4000"`, `$env:OLLAMA_BASE_URL = "http://localhost:11434"`, and `$env:OPENAI_API_KEY = "your-real-key"` instead of `export`.
 
-## 4. Optional: start a Python API
+## 4. Run the Pheonix Unified Console & Optional APIs
+
+### Pheonix Unified Console & Web Dashboard
+
+Pheonix includes a built-in web management console with live canvas, conversational core, instruction tuner, owner telemetry, and tamper-evident audit ledger.
+
+**How to start the Console:**
+
+From the repository root (with virtual environment active):
+
+```bash
+python console/server.py
+```
+Or via uvicorn:
+```bash
+python -m uvicorn console.server:app --host 127.0.0.1 --port 8080 --reload
+```
+
+Open `http://localhost:8080` in your web browser.
+
+**What to check to verify it works:**
+
+1. **Header & Module Health**: Check the top-right status pulse indicating `36 Modules Healthy` (queried live from `/api/health`).
+2. **Conversational Core (`#nav-btn-chat`)**: Type a message (e.g. `Analyze security audit log`) and click **Dispatch** or press Enter. Verify the message bubble renders along with verified tool chips (`vault:load_credentials`).
+3. **Live Canvas (`#nav-btn-canvas`)**: Click the **Live Canvas** tab in the sidebar. Click **Run / Update** (`#btn-canvas-render`); verify that the HTML/CSS markup in the editor executes and renders immediately inside the sandboxed preview iframe (`#canvas-iframe`).
+4. **Prompt Assistant (`#nav-btn-prompt`)**: Click **Prompt Assistant**, modify or keep the draft instruction, and click **Optimize Prompt** (`#btn-optimize-prompt`). Verify the synthesized few-shot system prompt appears in the output pane via `/api/prompt/optimize`.
+5. **Owner Console (`#nav-btn-owner`)**: Click **Owner Console**. Check the live telemetry cards: Module Health (`36 / 36`), Automated Tests Verified (`658+`), and click **Check Channel Updates** (`#btn-check-updates`).
+6. **Audit Ledger (`#nav-btn-audit`)**: Click **Audit Ledger** to view recent tamper-evident hash-chained events.
+7. **Multi-Tenant & Role Switcher**: In the sidebar footer, switch the **Tenant Scope** (`Enterprise Alpha`, `R&D Lab`, `Sandbox Demo`) and **Active Role** (`Owner`, `Admin`, `Member`, `Auditor`).
+
+---
+
+### Optional Python APIs
 
 Open a separate terminal for each optional API, activate `.venv` in that terminal, and run the command from the indicated directory. Bind to `127.0.0.1` for local-only access.
 
 ### Memory API
+
 
 ```bash
 cd memory

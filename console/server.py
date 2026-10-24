@@ -74,3 +74,11 @@ def create_console_app() -> FastAPI:
         }
 
     return app
+
+
+app = create_console_app()
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("console.server:app", host="127.0.0.1", port=8080, reload=True)
+
