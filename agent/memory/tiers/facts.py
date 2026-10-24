@@ -1,6 +1,8 @@
 """Tier 2: Fact Store (SQLite / PostgreSQL Entity & Constraint Repository)."""
 
 import json
+import os
+from pathlib import Path
 import sqlite3
 import time
 from typing import Any, Dict, List, Optional
@@ -10,8 +12,10 @@ from uuid import uuid4
 class FactStoreTier:
     """Persistent SQLite-backed key-entity fact and constraint store."""
 
-    def __init__(self, db_path: str = "agent_facts.db"):
-        self.db_path = db_path
+    def __init__(self, db_path: Optional[str] = None):
+        self.db_path = db_path or os.getenv("SQLITE_DB_PATH", str(Path.home() / ".pheonix" / "agent_facts.db"))
+        if self.db_path != ":memory:":
+            Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
     def _init_db(self) -> None:

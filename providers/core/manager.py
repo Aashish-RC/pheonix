@@ -82,6 +82,22 @@ class ProviderActivationManager:
         )
 
         self._activated[provider_id] = activated_record
+        try:
+            from audit.client import get_audit_logger
+            get_audit_logger().record(
+                module="providers",
+                action="activate_provider",
+                tenant_id=tenant_id,
+                resource=provider_id,
+                status="success" if ping_res.success else "failed",
+                details={
+                    "latency_ms": ping_res.latency_ms,
+                    "status": status.value,
+                    "error_message": ping_res.error_message,
+                },
+            )
+        except Exception:
+            pass
         return ping_res.success, activated_record, ping_res
 
     def recheck_provider(
@@ -217,6 +233,19 @@ class ProviderActivationManager:
         # Revoke key in Vault
         if self.vault_manager:
             self.vault_manager.revoke_secret(record.key_id, reason=reason)
+
+        try:
+            from audit.client import get_audit_logger
+            get_audit_logger().record(
+                module="providers",
+                action="revoke_provider",
+                tenant_id=getattr(record, "tenant_id", "default"),
+                resource=provider_id,
+                status="success",
+                details={"reason": reason},
+            )
+        except Exception:
+            pass
 
         return True
 

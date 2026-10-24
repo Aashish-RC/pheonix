@@ -81,7 +81,7 @@ jobs:
 
       - name: Static Type Checking (Mypy)
         run: |
-          mypy audit permissions rules storage search --follow-imports=silent
+          mypy audit permissions rules storage search vault auth guardrails --follow-imports=silent
 
       - name: Check Architecture Status Drift
         run: |

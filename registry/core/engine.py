@@ -56,6 +56,18 @@ class ComponentRegistry:
             "version": manifest.version,
             "timestamp": time.time(),
         })
+        try:
+            from audit.client import get_audit_logger
+            get_audit_logger().record(
+                module="registry",
+                action="register_component",
+                tenant_id=getattr(manifest, "tenant_id", "default"),
+                resource=f"{manifest.name}@{manifest.version}",
+                status="success",
+                details={"name": manifest.name, "version": manifest.version},
+            )
+        except Exception:
+            pass
         return ValidationResult(is_compatible=True, reasons=[], affected_components=[])
 
     def propose_update(self, candidate: ComponentManifest) -> UpdatePlan:
@@ -96,6 +108,22 @@ class ComponentRegistry:
             "to_version": candidate.version,
             "timestamp": time.time(),
         })
+        try:
+            from audit.client import get_audit_logger
+            get_audit_logger().record(
+                module="registry",
+                action="update_component",
+                tenant_id=getattr(candidate, "tenant_id", "default"),
+                resource=f"{candidate.name}@{candidate.version}",
+                status="success",
+                details={
+                    "name": candidate.name,
+                    "from_version": plan.from_version,
+                    "to_version": candidate.version,
+                },
+            )
+        except Exception:
+            pass
         return plan
 
     def export_system_manifest(self) -> Dict[str, Any]:

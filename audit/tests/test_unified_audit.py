@@ -131,3 +131,69 @@ def test_audit_logger_singleton_and_recording():
     assert results[0].module == "storage"
     assert results[0].resource == "s3://bucket/dataset.parquet"
     assert logger.verify_integrity() is True
+    assert logger.verify_chain() is True
+
+
+def test_cross_module_audit_logging_and_chain_verification(tmp_path):
+    ledger = UnifiedAuditLedger(db_path=":memory:")
+    logger = AuditLogger(ledger=ledger)
+    set_audit_logger(logger)
+
+    # 1. Tracker audit write
+    from tracker.core.key_monitor import KeyMonitor
+    km = KeyMonitor()
+    km.register_key(
+        key_id="test_key_1",
+        provider="openai",
+        monthly_quota_usd=50.0,
+        tenant_id="tenant_cross",
+    )
+    km.deduct_usage(provider="openai", tokens=5000, tenant_id="tenant_cross")
+
+    # 2. Storage audit write
+    from storage.core.engine import StorageEngine
+    from storage.drivers.local_fs import LocalFileSystemDriver
+    storage_dir = tmp_path / "storage"
+    se = StorageEngine(driver=LocalFileSystemDriver(base_dir=str(storage_dir)), auto_index_knowledge=False)
+    file_record = se.upload(filename="hello.txt", data=b"audit logging data", project_id="tenant_cross")
+    se.delete(file_record.file_id)
+
+    # 3. Providers audit write
+    from providers.core.manager import ProviderActivationManager
+    from providers.models import PingResult
+    pm = ProviderActivationManager()
+    pm.activate_provider(
+        provider_id="openai",
+        secret="sk-test",
+        probe_fn=lambda desc, sec: PingResult(success=True, latency_ms=15.0),
+        tenant_id="tenant_cross",
+    )
+    pm.revoke_provider("openai", reason="security test")
+
+    # 4. Registry audit write
+    from registry.core.engine import ComponentRegistry
+    from registry.models import ComponentManifest
+    cr = ComponentRegistry()
+    manifest = ComponentManifest(
+        name="test_plugin",
+        version="1.0.0",
+        description="Test plugin component",
+        tenant_id="tenant_cross",
+    )
+    cr.register_component(manifest)
+
+    # Verify all 4 modules recorded entries
+    tracker_entries = logger.query(module="tracker")
+    storage_entries = logger.query(module="storage")
+    provider_entries = logger.query(module="providers")
+    registry_entries = logger.query(module="registry")
+
+    assert len(tracker_entries) >= 2
+    assert len(storage_entries) >= 2
+    assert len(provider_entries) >= 2
+    assert len(registry_entries) >= 1
+
+    # Cryptographic hash chain automated verification across all operations
+    assert logger.verify_chain() is True
+    assert ledger.verify_chain() is True
+

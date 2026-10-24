@@ -5,6 +5,7 @@ Implements Argon2id with 32-byte salts and constant-time equality validation.
 
 import os
 import hmac
+from typing import Optional, Tuple
 from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
 
 DEFAULT_SALT_LENGTH = 32
@@ -16,7 +17,7 @@ DEFAULT_ARGON2_LANES = 4
 
 def hash_password(
     password: str,
-    salt: bytes = None,
+    salt: Optional[bytes] = None,
     memory_cost: int = DEFAULT_ARGON2_MEMORY_COST,
     iterations: int = DEFAULT_ARGON2_ITERATIONS,
     lanes: int = DEFAULT_ARGON2_LANES,

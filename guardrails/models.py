@@ -40,6 +40,7 @@ class SafetyCheckRequest(BaseModel):
     """Payload to evaluate against safety rules and attack vector detectors."""
     prompt: str
     actor: str = "anonymous"
+    session_id: Optional[str] = None
     context: Dict[str, Any] = Field(default_factory=dict)
 
 

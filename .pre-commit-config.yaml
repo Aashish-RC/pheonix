@@ -24,7 +24,7 @@ repos:
     rev: v1.10.0
     hooks:
       - id: mypy
-        files: '^(vault|auth|guardrails)/'
+        files: '^(audit|permissions|rules|storage|search|vault|auth|guardrails)/'
         args: [--ignore-missing-imports, --explicit-package-bases]
         additional_dependencies:
           - pydantic>=2.6.0

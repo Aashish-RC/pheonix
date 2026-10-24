@@ -5,11 +5,13 @@ configurable severity thresholds (G7), and security audit logging (G8).
 """
 
 import os
-from typing import Optional, Literal, Dict, List, Tuple, Any
+from typing import Optional, Literal, Dict, List, Tuple, Any, cast
 from ..models import (
+    SafetyAction,
     SafetyCheckRequest,
     SafetyCheckResult,
     SeverityLevel,
+    ThreatCategory,
     SEVERITY_ORDER,
 )
 from .crisis import CrisisHandler
@@ -42,7 +44,7 @@ class GuardrailsEngine:
 
         env_threshold = os.environ.get("GUARDRAILS_SEVERITY_THRESHOLD", "warn").lower()
         self.severity_threshold: SeverityLevel = severity_threshold or (
-            env_threshold if env_threshold in SEVERITY_ORDER else "warn"
+            cast(SeverityLevel, env_threshold) if env_threshold in SEVERITY_ORDER else "warn"
         )
 
         if rules_client is not None:
@@ -139,7 +141,7 @@ class GuardrailsEngine:
         clean = threshold.lower()
         if clean not in SEVERITY_ORDER:
             raise ValueError(f"Invalid severity threshold '{threshold}'. Expected one of {list(SEVERITY_ORDER.keys())}")
-        self.severity_threshold = clean
+        self.severity_threshold = cast(SeverityLevel, clean)
 
     def evaluate(self, request: Any) -> SafetyCheckResult:
         """
@@ -156,10 +158,11 @@ class GuardrailsEngine:
         # Gate 1: Crisis & Self-Harm Circuit-Breaker (Highest Priority)
         is_crisis, crisis_cat, crisis_msg = self.crisis_handler.check_with_category(text)
         if is_crisis:
+            threat_cat = f"crisis_{crisis_cat}" if crisis_cat else "crisis_self_harm"
             result = SafetyCheckResult(
                 action="crisis_intervention",
                 severity="crisis",
-                threat_category=f"crisis_{crisis_cat}" if crisis_cat else "crisis_self_harm",
+                threat_category=cast(ThreatCategory, threat_cat),
                 sanitized_prompt=None,
                 reason="Self-harm or crisis situation detected. Circuit breaker triggered.",
                 crisis_response=crisis_msg,
@@ -171,7 +174,7 @@ class GuardrailsEngine:
         # Gate 2: Prompt Injection and Adversarial Jailbreak Detection
         is_jailbreak, matches = self.jailbreak_detector.detect(text)
         if is_jailbreak:
-            action = "block" if (is_strict or SEVERITY_ORDER["block"] >= threshold_rank) else "warn"
+            action: SafetyAction = "block" if (is_strict or SEVERITY_ORDER["block"] >= threshold_rank) else "warn"
             result = SafetyCheckResult(
                 action=action,
                 severity="strict" if is_strict else "block",
@@ -187,12 +190,12 @@ class GuardrailsEngine:
         # Gate 2.5: Dynamic Compiled Rules Gate (from Rules Layer)
         rule_blocked, rule_reason, rule_matches = self._evaluate_compiled_rules(text)
         if rule_blocked:
-            action = "block" if (is_strict or SEVERITY_ORDER["block"] >= threshold_rank) else "warn"
+            action_rule: SafetyAction = "block" if (is_strict or SEVERITY_ORDER["block"] >= threshold_rank) else "warn"
             result = SafetyCheckResult(
-                action=action,
+                action=action_rule,
                 severity="strict" if is_strict else "block",
                 threat_category="rule_violation",
-                sanitized_prompt=None if action == "block" else text,
+                sanitized_prompt=None if action_rule == "block" else text,
                 reason=f"Blocked by dynamic rule: {rule_reason}",
                 crisis_response=None,
                 matched_patterns=rule_matches,
@@ -203,12 +206,12 @@ class GuardrailsEngine:
         # Gate 3: PII & Credential Sanitization
         sanitized_text, was_redacted, pii_types = self.pii_detector.sanitize(text)
         if was_redacted:
-            action = "block" if is_strict else ("redact" if SEVERITY_ORDER["redact"] >= threshold_rank else "warn")
+            action_pii: SafetyAction = "block" if is_strict else ("redact" if SEVERITY_ORDER["redact"] >= threshold_rank else "warn")
             result = SafetyCheckResult(
-                action=action,
+                action=action_pii,
                 severity="strict" if is_strict else "redact",
                 threat_category="pii_leak",
-                sanitized_prompt=None if action == "block" else sanitized_text,
+                sanitized_prompt=None if action_pii == "block" else sanitized_text,
                 reason=f"Sensitive PII detected ({', '.join(pii_types)}) - blocked under strict policy" if is_strict else f"Sensitive PII or credentials detected and redacted: {', '.join(pii_types)}",
                 crisis_response=None,
                 matched_patterns=pii_types,

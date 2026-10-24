@@ -232,7 +232,7 @@ def test_token_expiry_boundaries(auth_manager):
         username="alice",
         password="SuperSecretPassword123!",
         device_id="dev_ephemeral",
-        ttl_seconds=0.15,
+        ttl_seconds=1.0,
     )
 
     # Valid immediately
@@ -240,7 +240,7 @@ def test_token_expiry_boundaries(auth_manager):
     assert payload["sid"] == session.session_id
 
     # Sleep past expiration
-    time.sleep(0.20)
+    time.sleep(1.05)
     with pytest.raises(SessionInvalidError) as exc_info:
         auth_manager.validate_session(session.token_string)
     assert "expired" in str(exc_info.value).lower()

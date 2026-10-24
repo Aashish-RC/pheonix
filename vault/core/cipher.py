@@ -4,7 +4,7 @@ Envelope encryption utilizing Argon2id KDF and AES-256-GCM.
 """
 
 import os
-from typing import Tuple
+from typing import Tuple, Optional
 from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidTag
@@ -52,7 +52,7 @@ def derive_kek(
     return kdf.derive(passphrase.encode("utf-8"))
 
 
-def encrypt_aes_gcm(key: bytes, plaintext: bytes, associated_data: bytes = None) -> Tuple[bytes, bytes]:
+def encrypt_aes_gcm(key: bytes, plaintext: bytes, associated_data: Optional[bytes] = None) -> Tuple[bytes, bytes]:
     """
     Encrypt plaintext using AES-256-GCM.
     Returns: (nonce, ciphertext_with_auth_tag)
@@ -63,7 +63,7 @@ def encrypt_aes_gcm(key: bytes, plaintext: bytes, associated_data: bytes = None)
     return nonce, ciphertext
 
 
-def decrypt_aes_gcm(key: bytes, nonce: bytes, ciphertext: bytes, associated_data: bytes = None) -> bytes:
+def decrypt_aes_gcm(key: bytes, nonce: bytes, ciphertext: bytes, associated_data: Optional[bytes] = None) -> bytes:
     """
     Decrypt ciphertext using AES-256-GCM.
     Raises: cryptography.exceptions.InvalidTag if ciphertext or tag is modified.

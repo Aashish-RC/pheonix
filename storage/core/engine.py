@@ -100,6 +100,25 @@ class StorageEngine:
             except Exception:
                 pass
 
+        try:
+            from audit.client import get_audit_logger
+            get_audit_logger().record(
+                module="storage",
+                action="file_uploaded",
+                tenant_id=project_id,
+                project_id=project_id,
+                user_id=owner_id,
+                resource=stored_file.file_id,
+                status="success",
+                details={
+                    "filename": stored_file.filename,
+                    "size_bytes": stored_file.size_bytes,
+                    "sha256": stored_file.sha256_hash,
+                },
+            )
+        except Exception:
+            pass
+
         return stored_file
 
     def download(self, file_id: str) -> bytes:
@@ -146,6 +165,21 @@ class StorageEngine:
             self.driver.delete_blob(file.sha256_hash)
 
         self.quotas.record_deletion(file.project_id, file.size_bytes)
+
+        try:
+            from audit.client import get_audit_logger
+            get_audit_logger().record(
+                module="storage",
+                action="file_deleted",
+                tenant_id=file.project_id,
+                project_id=file.project_id,
+                resource=file_id,
+                status="success",
+                details={"filename": file.filename, "size_bytes": file.size_bytes},
+            )
+        except Exception:
+            pass
+
         return True
 
     def get_quota(self, project_id: str) -> StorageQuota:

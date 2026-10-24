@@ -273,3 +273,8 @@ class UnifiedAuditLedger:
             finally:
                 if self._memory_conn is None:
                     conn.close()
+
+    def verify_chain(self) -> bool:
+        """Alias for verify_integrity for automated cryptographic chain verification."""
+        return self.verify_integrity()
+

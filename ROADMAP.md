@@ -176,3 +176,17 @@ An inspection of the workspace reveals three existing directories:
 | **33** | **Sync** | Opt 2 | Steps 3, 12, 13, 32 | Settings sync, conversation history sync, distributed vector memory sync. | Two paired nodes maintain deterministic consistency. | **PARTIAL** |
 | **34** | **Component Registry Finishing** | Opt 2 | Steps 4, and all | Production update channel, staged rollout controller, user-app export packager. | An exported user application updates strictly when its underlying components update. | **REAL** |
 
+---
+
+### Auxiliary Components
+
+| Component | Module | Status | Verification Evidence & Scope |
+|---|---|:---:|---|
+| **Canvas & Live Artifacts** | `canvas` | **PARTIAL** | `canvas/core/canvas.py`, `canvas/tests/test_canvas.py` — in-memory artifacts tested; live WebSocket collaboration pending. |
+| **Audit Ledger** | `audit` | **REAL** | `audit/ledger.py`, `audit/client.py`, `audit/tests/test_unified_audit.py` — cryptographically chained tamper-evident ledger with cross-module recording and automated verification. |
+| **Console** | `console` | **REAL** | `console/server.py`, `console/index.html`, `console/tests/test_console.py` — local web management console server and health inspection dashboard. |
+| **Composer** | `agent_builder/composer` | **REAL** | `agent_builder/composer/layout_engine.py`, `agent_builder/composer/app_composer.py`, `agent_builder/tests/test_composer.py` — declarative layout solver and agent composer. |
+| **Marketplace** | `skills_packaging/marketplace` | **REAL** | `skills_packaging/marketplace/catalog.py`, `skills_packaging/marketplace/license.py`, `skills_packaging/tests/test_ecosystem.py` — package discovery, category indexing, and licensing entitlement engine. |
+| **Migrations** | `storage/migrations` | **REAL** | `storage/migrations.py`, `tests/test_schema_migrations_and_tenancy.py` — schema version tracking, automated migration runner, and backward-compatible tenant isolation. |
+
+

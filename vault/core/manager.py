@@ -77,6 +77,18 @@ class KeyStoreManager:
         if not self._unlocked_passphrase or self._cached_data is None:
             raise PermissionError("Vault is locked. Call unlock(passphrase) first.")
 
+    @property
+    def _data(self) -> Dict[str, Any]:
+        self._ensure_unlocked()
+        assert self._cached_data is not None
+        return self._cached_data
+
+    @property
+    def _passphrase(self) -> str:
+        self._ensure_unlocked()
+        assert self._unlocked_passphrase is not None
+        return self._unlocked_passphrase
+
     def _persist(
         self,
         action: str,
@@ -97,8 +109,8 @@ class KeyStoreManager:
                 "success": True,
                 "details": details,
             }
-            self._cached_data["audit"].append(audit_entry)
-            self.store.save_vault(self._cached_data, self._unlocked_passphrase)
+            self._data["audit"].append(audit_entry)
+            self.store.save_vault(self._data, self._passphrase)
             try:
                 from audit.client import get_audit_logger
                 get_audit_logger().record(
@@ -128,7 +140,7 @@ class KeyStoreManager:
         with self._lock:
             self._ensure_unlocked()
             now = time.time()
-            existing = self._cached_data["secrets"].get(key_id)
+            existing = self._data["secrets"].get(key_id)
 
             meta = SecretMetadata(
                 key_id=key_id,
@@ -144,7 +156,7 @@ class KeyStoreManager:
                 revocation_reason=None,
             )
 
-            self._cached_data["secrets"][key_id] = {
+            self._data["secrets"][key_id] = {
                 "metadata": meta.model_dump(),
                 "value": secret,
             }
@@ -163,7 +175,7 @@ class KeyStoreManager:
         """
         with self._lock:
             self._ensure_unlocked()
-            secret_entry = self._cached_data["secrets"].get(key_id)
+            secret_entry = self._data["secrets"].get(key_id)
             if not secret_entry:
                 raise SecretNotFoundError(f"Key ID '{key_id}' not found in vault.")
 
@@ -187,7 +199,7 @@ class KeyStoreManager:
     def has_secret(self, key_id: str) -> bool:
         """Check if an active, non-revoked secret exists."""
         self._ensure_unlocked()
-        entry = self._cached_data["secrets"].get(key_id)
+        entry = self._data["secrets"].get(key_id)
         if not entry:
             return False
         return not entry["metadata"].get("revoked", False)
@@ -201,7 +213,7 @@ class KeyStoreManager:
         self._ensure_unlocked()
         results = [
             SecretMetadata(**entry["metadata"])
-            for entry in self._cached_data["secrets"].values()
+            for entry in self._data["secrets"].values()
         ]
         if tenant_id is not None:
             results = [s for s in results if s.tenant_id == tenant_id]
@@ -214,7 +226,7 @@ class KeyStoreManager:
         Immediately revoke a secret, tombstoning its metadata and erasing the ciphertext.
         """
         self._ensure_unlocked()
-        entry = self._cached_data["secrets"].get(key_id)
+        entry = self._data["secrets"].get(key_id)
         if not entry:
             return False
 
@@ -240,4 +252,4 @@ class KeyStoreManager:
     def get_audit_log(self) -> List[AuditEntry]:
         """Retrieve audit log entries."""
         self._ensure_unlocked()
-        return [AuditEntry(**entry) for entry in self._cached_data.get("audit", [])]
+        return [AuditEntry(**entry) for entry in self._data.get("audit", [])]

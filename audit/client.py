@@ -59,6 +59,11 @@ class AuditLogger:
         """Verify the cryptographic hash chain of the ledger."""
         return self.ledger.verify_integrity()
 
+    def verify_chain(self) -> bool:
+        """Verify the cryptographic hash chain of the ledger."""
+        return self.ledger.verify_chain()
+
+
 
 def get_audit_logger() -> AuditLogger:
     """Return or initialize the process-wide audit logger."""

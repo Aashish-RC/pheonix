@@ -39,7 +39,7 @@ class AuthManager:
 
     def __init__(
         self,
-        signing_key: bytes = None,
+        signing_key: Optional[bytes] = None,
         vault_manager: Any = None,
         vault_key_id: str = "auth_session_signing_key",
     ):
@@ -170,6 +170,7 @@ class AuthManager:
                 role=role,
             )
         else:
+            assert self._signing_key is not None, "Signing key must be initialized"
             token_str, iat, exp = create_session_token(
                 session_id=session_id,
                 user_id=self._user.user_id,
@@ -229,19 +230,20 @@ class AuthManager:
                 key_id=self._vault_key_id,
             )
         else:
+            assert self._signing_key is not None, "Signing key must be initialized"
             is_valid, payload, err = verify_session_token(token_str, self._signing_key)
 
-        if not is_valid:
+        if not is_valid or payload is None:
             raise SessionInvalidError(f"Session verification failed: {err}")
 
-        device_id = payload["did"]
+        device_id = str(payload["did"])
         if self.device_registry.is_device_blacklisted(device_id):
             raise SessionInvalidError(f"Origin device '{device_id}' is blacklisted.")
 
         if not self.device_registry.is_device_active(device_id):
             raise SessionInvalidError(f"Origin device '{device_id}' is revoked or not trusted.")
 
-        session_id = payload["sid"]
+        session_id = str(payload["sid"])
         sess_record = self._sessions.get(session_id)
         if not sess_record or not sess_record.get("is_active", False):
             raise SessionInvalidError("Session has been revoked or expired.")

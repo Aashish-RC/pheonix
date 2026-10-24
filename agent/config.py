@@ -1,6 +1,7 @@
 """Unified Environmental & Feature Configurations for the Agent Layer."""
 
 import os
+from pathlib import Path
 from typing import Optional
 from pydantic import BaseModel, Field
 
@@ -34,7 +35,7 @@ class AgentLayerConfig(BaseModel):
         default_factory=lambda: int(os.getenv("QDRANT_PORT", "6333"))
     )
     sqlite_db_path: str = Field(
-        default_factory=lambda: os.getenv("SQLITE_DB_PATH", "agent_facts.db")
+        default_factory=lambda: os.getenv("SQLITE_DB_PATH", str(Path.home() / ".pheonix" / "agent_facts.db"))
     )
 
     # Sandbox Configuration

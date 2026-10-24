@@ -97,8 +97,14 @@ def generate_status_markdown() -> str:
         "",
         "## Auxiliary Components",
         "- **Canvas & Live Artifacts** (`canvas`): **PARTIAL** (Evidence: `canvas/core/canvas.py`, `canvas/tests/test_canvas.py` — tested with in-memory artifacts, live WebSocket collaboration missing).",
+        "- **Audit Ledger** (`audit`): **REAL** (Evidence: `audit/ledger.py`, `audit/client.py`, `audit/tests/test_unified_audit.py` — cryptographically chained tamper-evident ledger with cross-module recording and automated verification).",
+        "- **Console** (`console`): **REAL** (Evidence: `console/server.py`, `console/index.html`, `console/tests/test_console.py` — local web management console server and health inspection dashboard).",
+        "- **Composer** (`agent_builder/composer`): **REAL** (Evidence: `agent_builder/composer/layout_engine.py`, `agent_builder/composer/app_composer.py`, `agent_builder/tests/test_composer.py` — declarative layout solver and agent composer).",
+        "- **Marketplace** (`skills_packaging/marketplace`): **REAL** (Evidence: `skills_packaging/marketplace/catalog.py`, `skills_packaging/marketplace/license.py`, `skills_packaging/tests/test_ecosystem.py` — package discovery, category indexing, and licensing entitlement engine).",
+        "- **Migrations** (`storage/migrations`): **REAL** (Evidence: `storage/migrations.py`, `tests/test_schema_migrations_and_tenancy.py` — schema version tracking, automated migration runner, and backward-compatible tenant isolation).",
         "",
     ])
+
 
     return "\n".join(lines)
 

@@ -73,6 +73,18 @@ class KeyMonitor:
             is_expired=is_expired
         )
         self._key_records[key_id] = status
+        try:
+            from audit.client import get_audit_logger
+            get_audit_logger().record(
+                module="tracker",
+                action="key_registered",
+                tenant_id=tenant_id,
+                resource=key_id,
+                status="success",
+                details={"provider": provider, "monthly_quota_usd": quota, "current_spend_usd": current_spend},
+            )
+        except Exception:
+            pass
         return status
 
     def deduct_usage(
@@ -119,6 +131,25 @@ class KeyMonitor:
             target_record.alert_level = "warning"
         else:
             target_record.alert_level = "normal"
+
+        try:
+            from audit.client import get_audit_logger
+            get_audit_logger().record(
+                module="tracker",
+                action="deduct_usage",
+                tenant_id=target_record.tenant_id,
+                resource=target_record.key_id,
+                status="success",
+                details={
+                    "provider": target_record.provider,
+                    "deduction_usd": deduction,
+                    "tokens": tokens,
+                    "current_spend_usd": target_record.current_spend_usd,
+                    "alert_level": target_record.alert_level,
+                },
+            )
+        except Exception:
+            pass
 
         return target_record
 
