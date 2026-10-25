@@ -12,6 +12,7 @@ def test_console_static_routes():
     res = client.get("/")
     assert res.status_code == 200
     assert "Pheonix | Unified Intelligence & Governance Console" in res.text
+    assert "Console Preview" in res.text
     assert "id=\"nav-btn-chat\"" in res.text
     assert "id=\"nav-btn-owner\"" in res.text
     assert "id=\"nav-btn-canvas\"" in res.text
@@ -41,12 +42,27 @@ def test_console_api_endpoints():
     # Health API
     health_res = client.get("/api/health")
     assert health_res.status_code == 200
-    assert health_res.json()["modules_passing"] == 36
+    health_data = health_res.json()
+    assert "status" in health_data
+    assert health_data["preview_mode"] is True
+    assert "components" in health_data
 
-    # Tenants API
+    # Tenants API (dynamically populated from Auth/Audit)
     tenants_res = client.get("/api/tenants")
     assert tenants_res.status_code == 200
-    assert len(tenants_res.json()["tenants"]) == 3
+    assert len(tenants_res.json()["tenants"]) >= 1
+
+    # Audit Ledger API (reads real entries from ledger)
+    audit_res = client.get("/api/audit")
+    assert audit_res.status_code == 200
+    audit_data = audit_res.json()
+    assert "verified" in audit_data
+    assert "entries" in audit_data
+
+    # Chat Dispatch API (dispatches to gateway with fallback preview)
+    chat_res = client.post("/api/chat/dispatch", json={"message": "Test security prompt", "tenant_id": "test_t"})
+    assert chat_res.status_code == 200
+    assert "reply" in chat_res.json()
 
     # Prompt Optimizer API
     opt_res = client.post("/api/prompt/optimize", json={"prompt": "Analyze code security", "target_domain": "security"})

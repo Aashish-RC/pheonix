@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Pheonix Unified Intelligence, Agent Orchestration, Live Canvas, and Governance Console">
-  <title>Pheonix | Unified Intelligence & Governance Console</title>
+  <title>Pheonix | Unified Intelligence & Governance Console (Preview)</title>
   <link rel="manifest" href="/manifest.json">
   <link rel="icon" type="image/svg+xml" href="/icon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,7 +23,7 @@
           </svg>
         </div>
         <span class="brand-title">Pheonix</span>
-        <span class="brand-badge">2026.1</span>
+        <span class="brand-badge" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4);">PREVIEW</span>
       </div>
 
       <nav class="nav-menu">
@@ -53,9 +53,7 @@
         <div class="tenant-selector">
           <label class="tenant-label" for="tenant-select-box">Tenant Scope</label>
           <select id="tenant-select-box" class="tenant-select" onchange="onTenantChange(this.value)">
-            <option value="tenant_enterprise_alpha">Enterprise Alpha (Prod)</option>
-            <option value="tenant_rnd_beta">R&D Lab (Staging)</option>
-            <option value="tenant_isolated_demo">Sandbox Demo</option>
+            <option value="default">Default Workspace (Auth)</option>
           </select>
         </div>
         <div class="tenant-selector">
@@ -74,13 +72,14 @@
     <main class="main-wrapper">
       <!-- Header -->
       <header class="top-header">
-        <div class="header-left">
+        <div class="header-left" style="display: flex; align-items: center; gap: 1rem;">
           <h1 id="active-view-header" class="view-title">Conversational Core & Agent Surface</h1>
+          <span style="font-size: 0.75rem; background: rgba(245, 158, 11, 0.15); color: #f59e0b; padding: 0.25rem 0.6rem; border-radius: 9999px; border: 1px solid rgba(245, 158, 11, 0.3); font-weight: 600;">Console Preview</span>
         </div>
         <div class="header-right">
           <div class="status-indicator">
             <span class="status-pulse"></span>
-            <span id="system-status-text">36 Modules Healthy</span>
+            <span id="system-status-text">Checking Subsystems...</span>
           </div>
         </div>
       </header>
@@ -179,22 +178,22 @@
         <div class="dashboard-grid">
           <div class="metric-card">
             <span class="metric-title">Module Health</span>
-            <span class="metric-value" style="color: var(--accent-emerald);">36 / 36</span>
-            <span class="metric-subtitle">All repository test suites passing</span>
+            <span id="metric-module-health" class="metric-value" style="color: var(--accent-emerald);">Checking...</span>
+            <span id="metric-health-sub" class="metric-subtitle">Querying subsystem status</span>
           </div>
           <div class="metric-card">
             <span class="metric-title">Total Tests Verified</span>
-            <span class="metric-value" style="color: var(--accent-cyan);">658</span>
-            <span class="metric-subtitle">100% automated regression matrix</span>
+            <span id="metric-tests-count" class="metric-value" style="color: var(--accent-cyan);">678</span>
+            <span class="metric-subtitle">100% automated regression matrix (37 modules)</span>
           </div>
           <div class="metric-card">
-            <span class="metric-title">Active Inference Queue</span>
-            <span class="metric-value">0</span>
-            <span class="metric-subtitle">Capacity headroom: 100% available</span>
+            <span class="metric-title">Model Gateway</span>
+            <span id="metric-gateway-status" class="metric-value" style="font-size: 1.5rem;">Checking...</span>
+            <span id="metric-gateway-sub" class="metric-subtitle">:4000 gateway route</span>
           </div>
           <div class="metric-card">
             <span class="metric-title">Update Channel</span>
-            <span class="metric-value" style="font-size: 1.5rem; color: var(--accent-purple);">main (v0.1.0)</span>
+            <span class="metric-value" style="font-size: 1.5rem; color: var(--accent-purple);">main (Preview)</span>
             <button id="btn-check-updates" class="btn-approve" style="width: fit-content; margin-top: 0.5rem;" onclick="checkUpdates()">Check Channel Updates</button>
           </div>
         </div>
@@ -203,45 +202,25 @@
       <!-- View 5: Tamper-Evident Audit Ledger -->
       <section id="view-audit" class="view-container">
         <div class="audit-panel" style="margin-top: 2rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <span style="font-size: 0.9rem; color: #94a3b8;">Real-time cryptographically chained records from <code>data/unified_audit.db</code></span>
+            <button class="btn-approve" onclick="loadAuditRecords()" style="font-size: 0.8rem; padding: 0.35rem 0.75rem;">Refresh Ledger</button>
+          </div>
           <table class="audit-table">
             <thead>
               <tr>
-                <th>Seq</th>
+                <th>Record ID</th>
                 <th>Timestamp</th>
                 <th>Tenant ID</th>
-                <th>Actor Role</th>
-                <th>Action</th>
-                <th>Chained SHA256</th>
-                <th>Integrity</th>
+                <th>Role</th>
+                <th>Module / Action</th>
+                <th>Resource</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody id="audit-table-body">
               <tr>
-                <td>#1</td>
-                <td>2026-10-24 03:00:12</td>
-                <td>tenant_enterprise_alpha</td>
-                <td>owner</td>
-                <td>vault.initialize_keystore</td>
-                <td><code style="color: var(--accent-cyan);">8f3b20...da41</code></td>
-                <td><span class="badge-verified">&#10003; Verified</span></td>
-              </tr>
-              <tr>
-                <td>#2</td>
-                <td>2026-10-24 03:15:45</td>
-                <td>tenant_enterprise_alpha</td>
-                <td>admin</td>
-                <td>orchestrator.plan_resumed</td>
-                <td><code style="color: var(--accent-cyan);">4c19a7...ee29</code></td>
-                <td><span class="badge-verified">&#10003; Verified</span></td>
-              </tr>
-              <tr>
-                <td>#3</td>
-                <td>2026-10-24 03:22:30</td>
-                <td>tenant_enterprise_alpha</td>
-                <td>agent</td>
-                <td>browser.takeover_resolved</td>
-                <td><code style="color: var(--accent-cyan);">a9f140...9b33</code></td>
-                <td><span class="badge-verified">&#10003; Verified</span></td>
+                <td colspan="7" style="text-align: center; color: #64748b; padding: 2rem;">Loading audit records from ledger...</td>
               </tr>
             </tbody>
           </table>

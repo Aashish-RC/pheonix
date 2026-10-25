@@ -308,9 +308,11 @@ jobs:
         run: |
           docker compose up -d qdrant ollama meilisearch model-gateway
           docker compose exec -T ollama ollama pull llama3.2:1b
+          docker pull python:3.12-slim
 
-      - name: Run Live Integration Test
+      - name: Run Live Integration Tests
         env:
           PHEONIX_LIVE: "1"
         run: |
-          python -m pytest -q -m live
+          python -m pytest -q tests/ sandboxes/ -m live
+
